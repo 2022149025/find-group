@@ -5,9 +5,6 @@ const nextConfig: NextConfig = {
   typescript: {
     ignoreBuildErrors: false,
   },
-  eslint: {
-    ignoreDuringBuilds: false,
-  },
   // 성능 개선
   poweredByHeader: false,
   compress: true,

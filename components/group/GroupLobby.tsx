@@ -109,8 +109,8 @@ export default function GroupLobby({ groupId, sessionId, isLeader, onKickMember,
         const newStatus = result.data.group.status;
 
         // 그룹장 변경 감지
-        const currentLeader = members.find(m => m.isLeader);
-        const newLeader = newMembers.find(m => m.isLeader);
+        const currentLeader = members.find((m: GroupMember) => m.isLeader);
+        const newLeader = newMembers.find((m: GroupMember) => m.isLeader);
         
         if (currentLeader && newLeader && currentLeader.sessionId !== newLeader.sessionId) {
           // 그룹장이 변경되었음을 알림
