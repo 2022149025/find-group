@@ -1,0 +1,308 @@
+import { createClient } from '@supabase/supabase-js';
+
+export interface Group {
+  id: string;
+  leaderSessionId: string;
+  tankCount: number;
+  damageCount: number;
+  supportCount: number;
+  totalMembers: number;
+  status: 'waiting' | 'matched';
+  createdAt: string;
+  matchedAt?: string;
+}
+
+export interface GroupMember {
+  id: string;
+  groupId: string;
+  sessionId: string;
+  position: 'Tank' | 'Damage' | 'Support';
+  isLeader: boolean;
+  joinedAt: string;
+  profile?: any;
+}
+
+export class GroupService {
+  private supabase;
+
+  constructor() {
+    this.supabase = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+    );
+  }
+
+  /**
+   * UC-210: 그룹장으로 그룹 생성
+   */
+  async createGroup(leaderSessionId: string, leaderPosition: 'Tank' | 'Damage' | 'Support'): Promise<Group> {
+    // 그룹 생성
+    const { data: groupData, error: groupError } = await this.supabase
+      .from('groups')
+      .insert({
+        leader_session_id: leaderSessionId,
+        tank_count: leaderPosition === 'Tank' ? 1 : 0,
+        damage_count: leaderPosition === 'Damage' ? 1 : 0,
+        support_count: leaderPosition === 'Support' ? 1 : 0,
+        total_members: 1,
+        status: 'waiting'
+      })
+      .select()
+      .single();
+
+    if (groupError) throw new Error(`Failed to create group: ${groupError.message}`);
+
+    // 그룹장을 멤버로 추가
+    const { error: memberError } = await this.supabase
+      .from('group_members')
+      .insert({
+        group_id: groupData.id,
+        session_id: leaderSessionId,
+        position: leaderPosition,
+        is_leader: true
+      });
+
+    if (memberError) throw new Error(`Failed to add leader to group: ${memberError.message}`);
+
+    return this.mapGroupData(groupData);
+  }
+
+  /**
+   * UC-220: 역할 검증 및 그룹 참가
+   */
+  async joinGroup(groupId: string, sessionId: string, position: 'Tank' | 'Damage' | 'Support'): Promise<GroupMember> {
+    // 현재 그룹 상태 조회
+    const { data: groupData, error: groupError } = await this.supabase
+      .from('groups')
+      .select('*')
+      .eq('id', groupId)
+      .single();
+
+    if (groupError || !groupData) {
+      throw new Error('Group not found');
+    }
+
+    // 역할 검증
+    const canJoin = this.validateRoleCapacity(groupData, position);
+    if (!canJoin) {
+      throw new Error(`Cannot join: ${position} position is full`);
+    }
+
+    // 멤버 추가
+    const { data: memberData, error: memberError } = await this.supabase
+      .from('group_members')
+      .insert({
+        group_id: groupId,
+        session_id: sessionId,
+        position: position,
+        is_leader: false
+      })
+      .select()
+      .single();
+
+    if (memberError) throw new Error(`Failed to join group: ${memberError.message}`);
+
+    // 그룹 카운트 업데이트
+    await this.updateGroupCounts(groupId, position, 'increment');
+
+    // UC-301: 매칭 완료 감지
+    await this.checkMatchingComplete(groupId);
+
+    return this.mapMemberData(memberData);
+  }
+
+  /**
+   * UC-231: 그룹원 강제 퇴장
+   */
+  async kickMember(groupId: string, leaderSessionId: string, targetSessionId: string): Promise<void> {
+    // 그룹장 권한 확인
+    const { data: groupData } = await this.supabase
+      .from('groups')
+      .select('leader_session_id')
+      .eq('id', groupId)
+      .single();
+
+    if (!groupData || groupData.leader_session_id !== leaderSessionId) {
+      throw new Error('Only group leader can kick members');
+    }
+
+    // 대상 멤버 조회
+    const { data: memberData } = await this.supabase
+      .from('group_members')
+      .select('position, is_leader')
+      .eq('group_id', groupId)
+      .eq('session_id', targetSessionId)
+      .single();
+
+    if (!memberData) {
+      throw new Error('Member not found');
+    }
+
+    if (memberData.is_leader) {
+      throw new Error('Cannot kick group leader');
+    }
+
+    // 멤버 삭제
+    const { error: deleteError } = await this.supabase
+      .from('group_members')
+      .delete()
+      .eq('group_id', groupId)
+      .eq('session_id', targetSessionId);
+
+    if (deleteError) throw new Error(`Failed to kick member: ${deleteError.message}`);
+
+    // 그룹 카운트 업데이트
+    await this.updateGroupCounts(groupId, memberData.position, 'decrement');
+  }
+
+  /**
+   * 그룹 정보 조회 (멤버 포함)
+   */
+  async getGroupWithMembers(groupId: string): Promise<{ group: Group; members: GroupMember[] }> {
+    const { data: groupData, error: groupError } = await this.supabase
+      .from('groups')
+      .select(`
+        *,
+        group_members (
+          *,
+          temporary_profiles (*)
+        )
+      `)
+      .eq('id', groupId)
+      .single();
+
+    if (groupError || !groupData) {
+      throw new Error('Group not found');
+    }
+
+    const group = this.mapGroupData(groupData);
+    const members = (groupData.group_members || []).map((m: any) => ({
+      ...this.mapMemberData(m),
+      profile: m.temporary_profiles
+    }));
+
+    return { group, members };
+  }
+
+  /**
+   * 역할 용량 검증
+   */
+  private validateRoleCapacity(groupData: any, position: 'Tank' | 'Damage' | 'Support'): boolean {
+    switch (position) {
+      case 'Tank':
+        return groupData.tank_count < 1;
+      case 'Damage':
+        return groupData.damage_count < 2;
+      case 'Support':
+        return groupData.support_count < 2;
+      default:
+        return false;
+    }
+  }
+
+  /**
+   * 그룹 카운트 업데이트
+   */
+  private async updateGroupCounts(groupId: string, position: 'Tank' | 'Damage' | 'Support', operation: 'increment' | 'decrement'): Promise<void> {
+    const { data: currentGroup } = await this.supabase
+      .from('groups')
+      .select('tank_count, damage_count, support_count, total_members')
+      .eq('id', groupId)
+      .single();
+
+    if (!currentGroup) throw new Error('Group not found');
+
+    const delta = operation === 'increment' ? 1 : -1;
+    const updates: any = {
+      total_members: currentGroup.total_members + delta
+    };
+
+    switch (position) {
+      case 'Tank':
+        updates.tank_count = currentGroup.tank_count + delta;
+        break;
+      case 'Damage':
+        updates.damage_count = currentGroup.damage_count + delta;
+        break;
+      case 'Support':
+        updates.support_count = currentGroup.support_count + delta;
+        break;
+    }
+
+    const { error } = await this.supabase
+      .from('groups')
+      .update(updates)
+      .eq('id', groupId);
+
+    if (error) throw new Error(`Failed to update group counts: ${error.message}`);
+  }
+
+  /**
+   * UC-301: 매칭 완료 감지 (1T-2D-2H)
+   */
+  private async checkMatchingComplete(groupId: string): Promise<void> {
+    const { data: groupData } = await this.supabase
+      .from('groups')
+      .select('*')
+      .eq('id', groupId)
+      .single();
+
+    if (!groupData) return;
+
+    const isComplete = 
+      groupData.tank_count === 1 &&
+      groupData.damage_count === 2 &&
+      groupData.support_count === 2 &&
+      groupData.total_members === 5;
+
+    if (isComplete && groupData.status === 'waiting') {
+      await this.supabase
+        .from('groups')
+        .update({
+          status: 'matched',
+          matched_at: new Date().toISOString()
+        })
+        .eq('id', groupId);
+    }
+  }
+
+  /**
+   * 대기 중인 그룹 조회
+   */
+  async getWaitingGroups(): Promise<Group[]> {
+    const { data, error } = await this.supabase
+      .from('groups')
+      .select('*')
+      .eq('status', 'waiting')
+      .order('created_at', { ascending: true });
+
+    if (error) throw new Error(`Failed to fetch waiting groups: ${error.message}`);
+
+    return (data || []).map(this.mapGroupData);
+  }
+
+  private mapGroupData(data: any): Group {
+    return {
+      id: data.id,
+      leaderSessionId: data.leader_session_id,
+      tankCount: data.tank_count,
+      damageCount: data.damage_count,
+      supportCount: data.support_count,
+      totalMembers: data.total_members,
+      status: data.status,
+      createdAt: data.created_at,
+      matchedAt: data.matched_at
+    };
+  }
+
+  private mapMemberData(data: any): GroupMember {
+    return {
+      id: data.id,
+      groupId: data.group_id,
+      sessionId: data.session_id,
+      position: data.position,
+      isLeader: data.is_leader,
+      joinedAt: data.joined_at
+    };
+  }
+}
