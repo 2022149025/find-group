@@ -33,7 +33,7 @@
   - Body: `{ groupId, leaderSessionId, targetSessionId }`
 - `POST /api/group/leave` - 그룹 탈퇴 🆕
   - Body: `{ groupId, sessionId }`
-  - Note: 그룹장이 나가면 그룹 전체 삭제
+  - Note: 그룹장이 나가면 다음 멤버에게 인계 (멤버 없으면 그룹 삭제)
 
 ## 미구현 기능
 - WebSocket 실시간 알림 (현재는 5초 폴링 방식 사용)
