@@ -138,7 +138,17 @@ export default function Home() {
           setIsLeader(false);
           setStep('lobby');
         } else {
-          setError(result.error || '그룹 참가에 실패했습니다.');
+          // 디버그 정보 출력
+          if (result.debug) {
+            console.log('[그룹 매칭 실패] 디버그 정보:', result.debug);
+          }
+          
+          // 사용자 친화적인 에러 메시지
+          if (result.debug?.waitingGroups === 0) {
+            setError(`현재 대기 중인 그룹이 없습니다.\n\n"그룹장으로 시작" 버튼을 눌러 새 그룹을 만들어보세요!`);
+          } else {
+            setError(`${profile.mainPosition} 포지션의 빈자리가 있는 그룹을 찾지 못했습니다.\n\n잠시 후 다시 시도하거나 "그룹장으로 시작"을 선택해주세요.`);
+          }
         }
       }
     } catch (err) {
@@ -203,8 +213,19 @@ export default function Home() {
 
       {/* 에러 메시지 */}
       {error && (
-        <div className="max-w-2xl mx-auto mb-6 p-4 bg-red-100 border border-red-400 text-red-700 rounded-lg">
-          {error}
+        <div className="max-w-2xl mx-auto mb-6 p-4 bg-red-100 border-2 border-red-400 rounded-lg">
+          <div className="flex items-start gap-3">
+            <div className="text-2xl">⚠️</div>
+            <div className="flex-1">
+              <p className="text-red-700 whitespace-pre-line">{error}</p>
+              <button
+                onClick={() => setError('')}
+                className="mt-3 px-4 py-2 bg-red-600 text-white text-sm rounded hover:bg-red-700 transition"
+              >
+                확인
+              </button>
+            </div>
+          </div>
         </div>
       )}
 

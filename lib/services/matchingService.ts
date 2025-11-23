@@ -13,31 +13,46 @@ export class MatchingService {
   async autoMatchGroup(sessionId: string, position: 'Tank' | 'Damage' | 'Support'): Promise<{ groupId: string; joined: boolean }> {
     // 대기 중인 그룹 조회
     const waitingGroups = await this.groupService.getWaitingGroups();
+    
+    console.log(`[MatchingService] 대기 중인 그룹 수: ${waitingGroups.length}`);
+    console.log(`[MatchingService] 찾는 포지션: ${position}`);
 
     // 해당 포지션에 빈자리가 있는 그룹 찾기
     const suitableGroup = waitingGroups.find(group => {
+      let hasSpace = false;
       switch (position) {
         case 'Tank':
-          return group.tankCount < 1;
+          hasSpace = group.tankCount < 1;
+          break;
         case 'Damage':
-          return group.damageCount < 2;
+          hasSpace = group.damageCount < 2;
+          break;
         case 'Support':
-          return group.supportCount < 2;
-        default:
-          return false;
+          hasSpace = group.supportCount < 2;
+          break;
       }
+      
+      if (hasSpace) {
+        console.log(`[MatchingService] 적합한 그룹 발견: ${group.id} (T:${group.tankCount}/D:${group.damageCount}/S:${group.supportCount})`);
+      }
+      
+      return hasSpace;
     });
 
     if (!suitableGroup) {
+      console.log(`[MatchingService] 적합한 그룹 없음. 모든 그룹 상태:`, 
+        waitingGroups.map(g => `T:${g.tankCount}/D:${g.damageCount}/S:${g.supportCount}`));
       return { groupId: '', joined: false };
     }
 
     // 그룹 참가
     try {
       await this.groupService.joinGroup(suitableGroup.id, sessionId, position);
+      console.log(`[MatchingService] 그룹 참가 성공: ${suitableGroup.id}`);
       return { groupId: suitableGroup.id, joined: true };
     } catch (error) {
       // 동시성 문제로 참가 실패 시 (다른 사용자가 먼저 참가한 경우)
+      console.error(`[MatchingService] 그룹 참가 실패:`, error);
       return { groupId: '', joined: false };
     }
   }
