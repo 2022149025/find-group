@@ -89,24 +89,31 @@ export default function GroupLobby({ groupId, sessionId, isLeader, onKickMember,
     };
   }, [status, groupId, sessionId]);
 
-  // 그룹 데이터 가져오기
-  useEffect(() => {
-    fetchGroupData();
-    
-    // 5초마다 폴링 (실시간 업데이트를 위한 간단한 방법)
-    const interval = setInterval(fetchGroupData, 5000);
-    
-    return () => clearInterval(interval);
-  }, [groupId]);
-
   const fetchGroupData = async () => {
     try {
-      const response = await fetch(`/api/group/${groupId}`);
+      const response = await fetch(`/api/group/${groupId}`, {
+        // 캐시 방지를 위한 헤더 추가
+        headers: {
+          'Cache-Control': 'no-cache',
+          'Pragma': 'no-cache'
+        }
+      });
       const result = await response.json();
 
       if (result.success) {
         const newMembers = result.data.members;
         const newStatus = result.data.group.status;
+
+        // 새 멤버 참가 감지
+        if (newMembers.length > members.length) {
+          const newMember = newMembers.find(
+            (nm: GroupMember) => !members.some(m => m.sessionId === nm.sessionId)
+          );
+          if (newMember && newMember.sessionId !== sessionId) {
+            console.log(`새 멤버 참가: ${newMember.profile?.nickname} (${newMember.position})`);
+            // 시각적 피드백을 위한 콘솔 로그
+          }
+        }
 
         // 그룹장 변경 감지
         const currentLeader = members.find((m: GroupMember) => m.isLeader);
@@ -134,6 +141,18 @@ export default function GroupLobby({ groupId, sessionId, isLeader, onKickMember,
       setLoading(false);
     }
   };
+
+  // 그룹 데이터 가져오기 - 2초마다 폴링 (더 빠른 업데이트)
+  useEffect(() => {
+    fetchGroupData();
+    
+    // 매칭 완료 전에만 폴링 계속
+    if (status === 'waiting') {
+      // 2초로 단축하여 더 빠른 업데이트
+      const interval = setInterval(fetchGroupData, 2000);
+      return () => clearInterval(interval);
+    }
+  }, [groupId, status]);
 
   const handleKick = async (targetSessionId: string) => {
     if (!isLeader) return;
