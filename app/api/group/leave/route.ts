@@ -25,12 +25,12 @@ export async function POST(request: NextRequest) {
       }, { status: 404 });
     }
 
-    // 그룹장인 경우 그룹 전체 삭제
+    // 그룹장인 경우 그룹장 인계 (멤버가 있으면) 또는 그룹 삭제 (멤버가 없으면)
     if (member.isLeader) {
-      await groupService.deleteGroup(groupId);
+      await groupService.transferLeadership(groupId, sessionId);
       return NextResponse.json({
         success: true,
-        message: 'Group deleted (leader left)'
+        message: 'Leadership transferred or group deleted'
       });
     }
 

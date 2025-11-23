@@ -21,15 +21,19 @@ export default function Home() {
 
   // 세션 스토리지에서 현재 그룹 정보 저장/복구
   useEffect(() => {
-    // 그룹 정보가 있으면 저장
-    if (groupId && profile) {
+    // 그룹 대기실에 있을 때만 저장
+    if (step === 'lobby' && groupId && profile) {
       sessionStorage.setItem('currentGroup', JSON.stringify({
         groupId,
         sessionId: profile.sessionId,
-        timestamp: Date.now()
+        timestamp: Date.now(),
+        step: step
       }));
+    } else {
+      // 다른 단계에서는 정리
+      sessionStorage.removeItem('currentGroup');
     }
-  }, [groupId, profile]);
+  }, [step, groupId, profile]);
 
   // 페이지 로드 시 미완료 그룹에서 자동 탈퇴
   useEffect(() => {
@@ -37,15 +41,16 @@ export default function Home() {
       const savedGroup = sessionStorage.getItem('currentGroup');
       if (savedGroup) {
         try {
-          const { groupId, sessionId, timestamp } = JSON.parse(savedGroup);
+          const { groupId, sessionId, timestamp, step: savedStep } = JSON.parse(savedGroup);
           
           // 5분 이내의 세션만 처리 (너무 오래된 세션 무시)
-          if (Date.now() - timestamp < 5 * 60 * 1000) {
+          if (Date.now() - timestamp < 5 * 60 * 1000 && savedStep === 'lobby') {
             // 페이지 재로드인 경우 그룹에서 탈퇴
             await fetch('/api/group/leave', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ groupId, sessionId })
+              body: JSON.stringify({ groupId, sessionId }),
+              keepalive: true
             });
           }
         } catch (error) {

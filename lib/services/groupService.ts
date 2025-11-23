@@ -315,7 +315,64 @@ export class GroupService {
   }
 
   /**
-   * 그룹 삭제 (그룹장이 나가면 그룹 전체 삭제)
+   * 그룹장 인계 (그룹장이 나가면 다음 멤버에게 인계)
+   */
+  async transferLeadership(groupId: string, currentLeaderSessionId: string): Promise<void> {
+    // 현재 그룹의 모든 멤버 조회 (그룹장 제외, 가입 순서대로)
+    const { data: members } = await this.supabase
+      .from('group_members')
+      .select('*')
+      .eq('group_id', groupId)
+      .eq('is_leader', false)
+      .order('joined_at', { ascending: true });
+
+    if (!members || members.length === 0) {
+      // 멤버가 없으면 그룹 삭제
+      await this.deleteGroup(groupId);
+      return;
+    }
+
+    // 가장 먼저 들어온 멤버를 새 그룹장으로 지정
+    const newLeader = members[0];
+
+    // 새 그룹장 업데이트
+    const { error: updateMemberError } = await this.supabase
+      .from('group_members')
+      .update({ is_leader: true })
+      .eq('id', newLeader.id);
+
+    if (updateMemberError) throw new Error(`Failed to update new leader: ${updateMemberError.message}`);
+
+    // 그룹의 leader_session_id 업데이트
+    const { error: updateGroupError } = await this.supabase
+      .from('groups')
+      .update({ leader_session_id: newLeader.session_id })
+      .eq('id', groupId);
+
+    if (updateGroupError) throw new Error(`Failed to update group leader: ${updateGroupError.message}`);
+
+    // 기존 그룹장 멤버 삭제
+    const { data: oldLeaderMember } = await this.supabase
+      .from('group_members')
+      .select('position')
+      .eq('group_id', groupId)
+      .eq('session_id', currentLeaderSessionId)
+      .single();
+
+    if (oldLeaderMember) {
+      await this.supabase
+        .from('group_members')
+        .delete()
+        .eq('group_id', groupId)
+        .eq('session_id', currentLeaderSessionId);
+
+      // 카운트 업데이트
+      await this.updateGroupCounts(groupId, oldLeaderMember.position, 'decrement');
+    }
+  }
+
+  /**
+   * 그룹 삭제 (멤버가 없을 때만 삭제)
    */
   async deleteGroup(groupId: string): Promise<void> {
     // group_members는 ON DELETE CASCADE로 자동 삭제됨

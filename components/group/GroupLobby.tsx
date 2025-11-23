@@ -40,16 +40,6 @@ export default function GroupLobby({ groupId, sessionId, isLeader, onKickMember,
     }
   };
 
-  // 페이지 언마운트 시 그룹 탈퇴
-  useEffect(() => {
-    return () => {
-      // 매칭이 완료되지 않은 경우에만 탈퇴
-      if (status !== 'matched') {
-        leaveGroup();
-      }
-    };
-  }, [status]);
-
   // beforeunload 이벤트: 브라우저 닫기/새로고침 감지
   useEffect(() => {
     const handleBeforeUnload = (e: BeforeUnloadEvent) => {
@@ -65,6 +55,37 @@ export default function GroupLobby({ groupId, sessionId, isLeader, onKickMember,
 
     return () => {
       window.removeEventListener('beforeunload', handleBeforeUnload);
+    };
+  }, [status, groupId, sessionId]);
+
+  // visibilitychange 이벤트: 탭 전환/뒤로가기 감지
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.hidden && status !== 'matched') {
+        // 페이지가 숨겨질 때 (탭 전환, 뒤로가기 등)
+        leaveGroup();
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, [status, groupId, sessionId]);
+
+  // pagehide 이벤트: iOS Safari 등에서 페이지 이탈 감지
+  useEffect(() => {
+    const handlePageHide = () => {
+      if (status !== 'matched') {
+        leaveGroup();
+      }
+    };
+
+    window.addEventListener('pagehide', handlePageHide);
+
+    return () => {
+      window.removeEventListener('pagehide', handlePageHide);
     };
   }, [status, groupId, sessionId]);
 
@@ -84,10 +105,26 @@ export default function GroupLobby({ groupId, sessionId, isLeader, onKickMember,
       const result = await response.json();
 
       if (result.success) {
-        setMembers(result.data.members);
-        setStatus(result.data.group.status);
+        const newMembers = result.data.members;
+        const newStatus = result.data.group.status;
 
-        if (result.data.group.status === 'matched' && status === 'waiting') {
+        // 그룹장 변경 감지
+        const currentLeader = members.find(m => m.isLeader);
+        const newLeader = newMembers.find(m => m.isLeader);
+        
+        if (currentLeader && newLeader && currentLeader.sessionId !== newLeader.sessionId) {
+          // 그룹장이 변경되었음을 알림
+          if (newLeader.sessionId === sessionId) {
+            alert('당신이 새로운 그룹장이 되었습니다! 👑');
+          } else {
+            alert(`${newLeader.profile?.nickname}님이 새로운 그룹장이 되었습니다.`);
+          }
+        }
+
+        setMembers(newMembers);
+        setStatus(newStatus);
+
+        if (newStatus === 'matched' && status === 'waiting') {
           onMatchingComplete?.();
         }
       }
