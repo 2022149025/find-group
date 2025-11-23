@@ -1,0 +1,17 @@
+
+> webapp@0.1.0 dev
+> next dev
+
+   [1m[38;2;173;127;168m▲ Next.js 16.0.3[39m[22m (Turbopack)
+   - Local:         http://localhost:3000
+   - Network:       http://169.254.0.21:3000
+   - Environments: .env.local
+
+ [32m[1m✓[22m[39m Starting...
+ [32m[1m✓[22m[39m Ready in 1569ms
+ [37m[1m○[22m[39m Compiling / ...
+ HEAD / [32m200[39m in 4.2s[2m (compile: 3.9s, render: 217ms)[22m
+ GET / [32m200[39m in 133ms[2m (compile: 12ms, render: 121ms)[22m
+ [33m[1m⚠[22m[39m Cross origin request detected from 3000-izvyyqjt7wc6iz8mdpo07-b32ec7bb.sandbox.novita.ai to /_next/* resource. In a future major version of Next.js, you will need to explicitly configure "allowedDevOrigins" in next.config to allow this.
+Read more: https://nextjs.org/docs/app/api-reference/config/next-config-js/allowedDevOrigins
+ GET / [32m200[39m in 114ms[2m (compile: 7ms, render: 107ms)[22m

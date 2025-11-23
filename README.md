@@ -62,10 +62,13 @@
 4. **그룹 대기실**에서 멤버 확인
 5. **매칭 완료** 시 팀 정보 확인
 
+## URLs
+- **개발 서버**: https://3000-izvyyqjt7wc6iz8mdpo07-b32ec7bb.sandbox.novita.ai
+
 ## 배포 정보
-- **플랫폼**: Vercel (Next.js)
-- **데이터베이스**: Supabase
-- **상태**: 🚧 개발 중
+- **플랫폼**: Vercel (Next.js) - 배포 대기 중
+- **데이터베이스**: Supabase - 설정 필요
+- **상태**: ✅ 로컬 개발 완료, Supabase 연동 필요
 - **기술 스택**: Next.js 16 + TypeScript + Tailwind CSS + Supabase
 - **마지막 업데이트**: 2025-11-23
 
