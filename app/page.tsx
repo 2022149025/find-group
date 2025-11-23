@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import ProfileForm from '@/components/profile/ProfileForm';
 import ModeSelector from '@/components/mode/ModeSelector';
 import GroupLobby from '@/components/group/GroupLobby';
@@ -18,6 +18,47 @@ export default function Home() {
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string>('');
   const [matchedMembers, setMatchedMembers] = useState<GroupMember[]>([]);
+
+  // 세션 스토리지에서 현재 그룹 정보 저장/복구
+  useEffect(() => {
+    // 그룹 정보가 있으면 저장
+    if (groupId && profile) {
+      sessionStorage.setItem('currentGroup', JSON.stringify({
+        groupId,
+        sessionId: profile.sessionId,
+        timestamp: Date.now()
+      }));
+    }
+  }, [groupId, profile]);
+
+  // 페이지 로드 시 미완료 그룹에서 자동 탈퇴
+  useEffect(() => {
+    const handlePageLoad = async () => {
+      const savedGroup = sessionStorage.getItem('currentGroup');
+      if (savedGroup) {
+        try {
+          const { groupId, sessionId, timestamp } = JSON.parse(savedGroup);
+          
+          // 5분 이내의 세션만 처리 (너무 오래된 세션 무시)
+          if (Date.now() - timestamp < 5 * 60 * 1000) {
+            // 페이지 재로드인 경우 그룹에서 탈퇴
+            await fetch('/api/group/leave', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ groupId, sessionId })
+            });
+          }
+        } catch (error) {
+          console.error('Failed to cleanup on page load:', error);
+        }
+        
+        // 세션 스토리지 정리
+        sessionStorage.removeItem('currentGroup');
+      }
+    };
+
+    handlePageLoad();
+  }, []);
 
   // 프로필 생성
   const handleProfileSubmit = async (profileInput: ProfileInput) => {
@@ -118,7 +159,23 @@ export default function Home() {
   };
 
   // 새로운 매칭 시작
-  const handleNewMatch = () => {
+  const handleNewMatch = async () => {
+    // 현재 그룹에서 탈퇴 처리
+    if (groupId && profile) {
+      try {
+        await fetch('/api/group/leave', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            groupId,
+            sessionId: profile.sessionId
+          })
+        });
+      } catch (error) {
+        console.error('Failed to leave group:', error);
+      }
+    }
+
     setStep('landing');
     setProfile(null);
     setGroupId('');

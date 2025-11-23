@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { GroupMember } from '@/lib/services/groupService';
 
 interface GroupLobbyProps {
@@ -20,6 +20,53 @@ export default function GroupLobby({ groupId, sessionId, isLeader, onKickMember,
   const [members, setMembers] = useState<GroupMember[]>([]);
   const [status, setStatus] = useState<'waiting' | 'matched'>('waiting');
   const [loading, setLoading] = useState(true);
+  const hasLeft = useRef(false);
+
+  // 그룹 탈퇴 함수
+  const leaveGroup = async () => {
+    if (hasLeft.current) return; // 중복 호출 방지
+    hasLeft.current = true;
+
+    try {
+      await fetch('/api/group/leave', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ groupId, sessionId }),
+        // keepalive를 사용하여 페이지 닫힐 때도 요청 완료
+        keepalive: true
+      });
+    } catch (error) {
+      console.error('Failed to leave group:', error);
+    }
+  };
+
+  // 페이지 언마운트 시 그룹 탈퇴
+  useEffect(() => {
+    return () => {
+      // 매칭이 완료되지 않은 경우에만 탈퇴
+      if (status !== 'matched') {
+        leaveGroup();
+      }
+    };
+  }, [status]);
+
+  // beforeunload 이벤트: 브라우저 닫기/새로고침 감지
+  useEffect(() => {
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (status !== 'matched') {
+        leaveGroup();
+        // 브라우저에 경고 메시지 표시 (선택사항)
+        e.preventDefault();
+        e.returnValue = '';
+      }
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+    };
+  }, [status, groupId, sessionId]);
 
   // 그룹 데이터 가져오기
   useEffect(() => {
@@ -163,6 +210,23 @@ export default function GroupLobby({ groupId, sessionId, isLeader, onKickMember,
           <p className="text-lg font-bold text-green-800">
             🎉 매칭이 완료되었습니다! 게임을 시작하세요!
           </p>
+        </div>
+      )}
+
+      {/* 그룹 나가기 버튼 (매칭 완료 전에만 표시) */}
+      {status === 'waiting' && (
+        <div className="mt-4">
+          <button
+            onClick={async () => {
+              if (confirm('정말로 그룹에서 나가시겠습니까?')) {
+                await leaveGroup();
+                window.location.href = '/'; // 홈으로 이동
+              }
+            }}
+            className="w-full py-2 bg-gray-500 text-white rounded hover:bg-gray-600 transition"
+          >
+            그룹 나가기
+          </button>
         </div>
       )}
     </div>

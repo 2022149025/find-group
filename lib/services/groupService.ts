@@ -281,6 +281,52 @@ export class GroupService {
     return (data || []).map(this.mapGroupData);
   }
 
+  /**
+   * 그룹원 탈퇴 (자발적 탈퇴)
+   */
+  async removeMember(groupId: string, sessionId: string): Promise<void> {
+    // 멤버 정보 조회
+    const { data: memberData } = await this.supabase
+      .from('group_members')
+      .select('position, is_leader')
+      .eq('group_id', groupId)
+      .eq('session_id', sessionId)
+      .single();
+
+    if (!memberData) {
+      throw new Error('Member not found');
+    }
+
+    if (memberData.is_leader) {
+      throw new Error('Leader cannot leave. Use deleteGroup instead.');
+    }
+
+    // 멤버 삭제
+    const { error: deleteError } = await this.supabase
+      .from('group_members')
+      .delete()
+      .eq('group_id', groupId)
+      .eq('session_id', sessionId);
+
+    if (deleteError) throw new Error(`Failed to remove member: ${deleteError.message}`);
+
+    // 그룹 카운트 업데이트
+    await this.updateGroupCounts(groupId, memberData.position, 'decrement');
+  }
+
+  /**
+   * 그룹 삭제 (그룹장이 나가면 그룹 전체 삭제)
+   */
+  async deleteGroup(groupId: string): Promise<void> {
+    // group_members는 ON DELETE CASCADE로 자동 삭제됨
+    const { error } = await this.supabase
+      .from('groups')
+      .delete()
+      .eq('id', groupId);
+
+    if (error) throw new Error(`Failed to delete group: ${error.message}`);
+  }
+
   private mapGroupData(data: any): Group {
     return {
       id: data.id,
