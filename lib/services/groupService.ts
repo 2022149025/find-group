@@ -36,6 +36,8 @@ export class GroupService {
    * UC-210: 그룹장으로 그룹 생성
    */
   async createGroup(leaderSessionId: string, leaderPosition: 'Tank' | 'Damage' | 'Support'): Promise<Group> {
+    console.log('[GroupService] 그룹 생성 시작:', { leaderSessionId, leaderPosition });
+    
     // 그룹 생성
     const { data: groupData, error: groupError } = await this.supabase
       .from('groups')
@@ -50,7 +52,16 @@ export class GroupService {
       .select()
       .single();
 
-    if (groupError) throw new Error(`Failed to create group: ${groupError.message}`);
+    if (groupError) {
+      console.error('[GroupService] 그룹 생성 실패:', groupError);
+      throw new Error(`Failed to create group: ${groupError.message}`);
+    }
+
+    console.log('[GroupService] 그룹 생성 성공:', {
+      id: groupData.id,
+      status: groupData.status,
+      position: leaderPosition
+    });
 
     // 그룹장을 멤버로 추가
     const { error: memberError } = await this.supabase
@@ -62,7 +73,12 @@ export class GroupService {
         is_leader: true
       });
 
-    if (memberError) throw new Error(`Failed to add leader to group: ${memberError.message}`);
+    if (memberError) {
+      console.error('[GroupService] 멤버 추가 실패:', memberError);
+      throw new Error(`Failed to add leader to group: ${memberError.message}`);
+    }
+
+    console.log('[GroupService] 그룹장 멤버 추가 성공');
 
     return this.mapGroupData(groupData);
   }
@@ -270,13 +286,30 @@ export class GroupService {
    * 대기 중인 그룹 조회
    */
   async getWaitingGroups(): Promise<Group[]> {
+    console.log('[GroupService] getWaitingGroups 시작');
+    console.log('[GroupService] Supabase URL:', process.env.NEXT_PUBLIC_SUPABASE_URL?.substring(0, 30) + '...');
+    
     const { data, error } = await this.supabase
       .from('groups')
       .select('*')
       .eq('status', 'waiting')
       .order('created_at', { ascending: true });
 
-    if (error) throw new Error(`Failed to fetch waiting groups: ${error.message}`);
+    if (error) {
+      console.error('[GroupService] 쿼리 오류:', error);
+      throw new Error(`Failed to fetch waiting groups: ${error.message}`);
+    }
+
+    console.log('[GroupService] 조회된 그룹 수:', data?.length || 0);
+    if (data && data.length > 0) {
+      console.log('[GroupService] 그룹 상세:', data.map(g => ({
+        id: g.id.substring(0, 8),
+        status: g.status,
+        tanks: g.tank_count,
+        damage: g.damage_count,
+        support: g.support_count
+      })));
+    }
 
     return (data || []).map(this.mapGroupData);
   }
