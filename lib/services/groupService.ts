@@ -26,10 +26,23 @@ export class GroupService {
   private supabase;
 
   constructor() {
-    this.supabase = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-    );
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+    
+    // 서버 사이드에서는 Service Role Key 사용 (RLS 우회)
+    // 클라이언트 사이드에서는 Anon Key 사용 (보안)
+    const isServer = typeof window === 'undefined';
+    const supabaseKey = isServer && process.env.SUPABASE_SERVICE_ROLE_KEY
+      ? process.env.SUPABASE_SERVICE_ROLE_KEY
+      : process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+    
+    console.log('[GroupService] Supabase 초기화:', {
+      isServer,
+      url: supabaseUrl.substring(0, 30) + '...',
+      keyType: isServer && process.env.SUPABASE_SERVICE_ROLE_KEY ? 'service_role' : 'anon',
+      hasServiceKey: !!process.env.SUPABASE_SERVICE_ROLE_KEY
+    });
+    
+    this.supabase = createClient(supabaseUrl, supabaseKey);
   }
 
   /**

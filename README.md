@@ -31,6 +31,7 @@
 - `POST /api/group/join` - 그룹 참가 (자동 매칭)
   - Body: `{ sessionId, position }`
 - `GET /api/group/[groupId]` - 그룹 정보 조회
+- `GET /api/group/debug` - 디버그 정보 (대기 그룹, 통계) 🆕
 - `POST /api/group/kick` - 멤버 강제 퇴장
   - Body: `{ groupId, leaderSessionId, targetSessionId }`
 - `POST /api/group/leave` - 그룹 탈퇴 🆕
@@ -76,19 +77,31 @@
 ## 배포 정보
 - **플랫폼**: Vercel (Next.js)
 - **데이터베이스**: Supabase (연결 완료)
-- **상태**: ✅ 빌드 성공, Vercel 자동 배포 진행 중
+- **상태**: 🚨 **Critical Fix Required** - 그룹 생성 실패 문제 해결 중
 - **기술 스택**: Next.js 16 + TypeScript + Tailwind CSS + Supabase
-- **최신 커밋**: `44c807f` - Build fix and deployment optimization
+- **최신 커밋**: v1.2.3 - Critical group creation fix
 - **마지막 업데이트**: 2025-11-23
 
-### 빌드 최적화
-- TypeScript 타입 오류 수정
-- Next.js 16 호환 설정 적용
-- ✅ 로컬 빌드 성공 (5.6초)
-- ✅ GitHub 푸시 완료
-- ⏳ Vercel 자동 배포 진행 중
+### 🚨 중요: Vercel 환경 변수 설정 필요
+그룹 생성 기능이 작동하려면 **Vercel 환경 변수 추가가 필수**입니다:
 
-📄 자세한 내역: `BUILD_FIX.md` 참고
+1. **Supabase Dashboard** → Settings → API → `service_role` secret 복사
+2. **Vercel Dashboard** → Settings → Environment Variables → 추가:
+   - Key: `SUPABASE_SERVICE_ROLE_KEY`
+   - Value: {복사한 service_role key}
+   - Environments: Production, Preview, Development 모두 체크
+3. 저장 후 자동 재배포 대기 (1-2분)
+
+**자세한 가이드**: `FIX_GROUP_CREATION_GUIDE.md` 참고
+
+### 최근 업데이트 (v1.2.3)
+- ✅ Supabase Service Role Key 지원 추가
+- ✅ 서버/클라이언트 환경 자동 감지
+- ✅ RLS (Row Level Security) 우회 기능
+- ✅ 그룹 생성 실패 → 404 오류 근본 원인 수정
+- ✅ 상세한 디버깅 로그 추가
+
+📄 상세 분석: `CRITICAL_ERROR_ANALYSIS.md` 참고
 
 ## 로컬 개발 환경 설정
 
@@ -101,7 +114,12 @@
 ```bash
 NEXT_PUBLIC_SUPABASE_URL=your_actual_supabase_url
 NEXT_PUBLIC_SUPABASE_ANON_KEY=your_actual_supabase_anon_key
+SUPABASE_SERVICE_ROLE_KEY=your_actual_service_role_key  # 서버 사이드용 (선택사항)
 ```
+
+**중요**: 
+- `NEXT_PUBLIC_*`: 클라이언트/서버 모두 접근 가능
+- `SUPABASE_SERVICE_ROLE_KEY`: 서버 전용 (RLS 우회), Supabase Dashboard → Settings → API에서 복사
 
 ### 3. 데이터베이스 마이그레이션
 Supabase SQL Editor에서 `supabase/migrations/001_initial_schema.sql` 실행

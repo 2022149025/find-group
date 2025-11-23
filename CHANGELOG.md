@@ -1,5 +1,54 @@
 # Changelog
 
+## [1.2.3] - 2025-11-23
+
+### Fixed
+- 🔥 **CRITICAL: 그룹 생성 실패 문제 해결**
+  - Supabase Service Role Key 지원 추가
+  - 서버 사이드에서 RLS (Row Level Security) 우회 가능
+  - 그룹 생성 시 데이터베이스 저장 실패 문제 해결
+  - 404 Not Found 오류 (그룹 조회 실패) 근본 원인 수정
+
+### Added
+- 🔐 **Supabase 인증 개선**
+  - 서버/클라이언트 환경 감지 자동화
+  - 서버: Service Role Key 사용 (관리자 권한)
+  - 클라이언트: Anon Key 사용 (보안 유지)
+  - 초기화 시 사용 중인 키 타입 로깅
+
+### Changed
+- 📝 **상세한 디버깅 로그 추가**
+  - `GroupService` 초기화: 서버/클라이언트 구분, 키 타입 출력
+  - Service Role Key 존재 여부 확인 로그
+  - 데이터베이스 작업 문제 진단 용이
+
+### Documentation
+- 📖 **`FIX_GROUP_CREATION_GUIDE.md`**: 그룹 생성 실패 해결 가이드
+  - Supabase Service Role Key 설정 방법
+  - Vercel 환경 변수 추가 단계별 안내
+  - 검증 방법 및 트러블슈팅
+- 🚨 **`CRITICAL_ERROR_ANALYSIS.md`**: 404 오류 근본 원인 분석
+  - RLS 정책 문제 상세 설명
+  - Service Role Key vs Anon Key 차이
+  - SQL 정책 예제 코드
+
+### Technical Details
+- `lib/services/groupService.ts`: 생성자 로직 개선
+  - `typeof window === 'undefined'`로 서버 사이드 감지
+  - `SUPABASE_SERVICE_ROLE_KEY` 환경 변수 지원
+  - Fallback to `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+
+### Migration Guide
+**Vercel 환경 변수 필수 추가**:
+1. Supabase Dashboard → Settings → API → `service_role` key 복사
+2. Vercel Dashboard → Settings → Environment Variables
+3. `SUPABASE_SERVICE_ROLE_KEY` 추가 (모든 환경: Production, Preview, Development)
+4. 저장 후 자동 재배포 대기
+
+자세한 내용: `FIX_GROUP_CREATION_GUIDE.md` 참고
+
+---
+
 ## [1.2.2] - 2025-11-23
 
 ### Added
