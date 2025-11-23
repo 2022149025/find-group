@@ -19,6 +19,7 @@
 ✅ 실시간 그룹 대기실 UI
 ✅ 매칭 완료 화면
 ✅ 멤버 강제 퇴장 기능
+✅ 자동 그룹 탈퇴 (브라우저 닫기/페이지 새로고침 시) 🆕
 
 ## 현재 기능 엔트리 URI
 - `POST /api/profile/create` - 임시 프로필 생성
@@ -30,6 +31,9 @@
 - `GET /api/group/[groupId]` - 그룹 정보 조회
 - `POST /api/group/kick` - 멤버 강제 퇴장
   - Body: `{ groupId, leaderSessionId, targetSessionId }`
+- `POST /api/group/leave` - 그룹 탈퇴 🆕
+  - Body: `{ groupId, sessionId }`
+  - Note: 그룹장이 나가면 그룹 전체 삭제
 
 ## 미구현 기능
 - WebSocket 실시간 알림 (현재는 5초 폴링 방식 사용)
