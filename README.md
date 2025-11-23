@@ -20,6 +20,8 @@
 ✅ 매칭 완료 화면
 ✅ 멤버 강제 퇴장 기능
 ✅ 자동 그룹 탈퇴 (브라우저 닫기/페이지 새로고침 시) 🆕
+✅ 그룹장 권한 자동 인계 (그룹장 퇴장 시) 🆕
+✅ 수동 그룹 나가기 버튼 🆕
 
 ## 현재 기능 엔트리 URI
 - `POST /api/profile/create` - 임시 프로필 생성
@@ -74,9 +76,19 @@
 ## 배포 정보
 - **플랫폼**: Vercel (Next.js)
 - **데이터베이스**: Supabase (연결 완료)
-- **상태**: ✅ 코드 완성, 배포 준비 완료
+- **상태**: ✅ 빌드 성공, Vercel 자동 배포 진행 중
 - **기술 스택**: Next.js 16 + TypeScript + Tailwind CSS + Supabase
+- **최신 커밋**: `44c807f` - Build fix and deployment optimization
 - **마지막 업데이트**: 2025-11-23
+
+### 빌드 최적화
+- TypeScript 타입 오류 수정
+- Next.js 16 호환 설정 적용
+- ✅ 로컬 빌드 성공 (5.6초)
+- ✅ GitHub 푸시 완료
+- ⏳ Vercel 자동 배포 진행 중
+
+📄 자세한 내역: `BUILD_FIX.md` 참고
 
 ## 로컬 개발 환경 설정
 
