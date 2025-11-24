@@ -1,5 +1,21 @@
 import { createClient } from '@supabase/supabase-js';
 
+export interface Profile {
+  id: string;
+  session_id: string;
+  nickname: string;
+  battle_tag: string;
+  main_position: 'Tank' | 'Damage' | 'Support';
+  current_tier: {
+    rank: string;
+    division: number;
+  };
+  main_heroes: string[];
+  introduction: string;
+  created_at: string;
+  expires_at: string;
+}
+
 export interface Group {
   id: string;
   leaderSessionId: string;
@@ -19,7 +35,7 @@ export interface GroupMember {
   position: 'Tank' | 'Damage' | 'Support';
   isLeader: boolean;
   joinedAt: string;
-  profile?: any;
+  profile?: Profile;
 }
 
 export class GroupService {
@@ -205,10 +221,14 @@ export class GroupService {
     }
 
     const group = this.mapGroupData(groupData);
-    const members = (groupData.group_members || []).map((m: any) => ({
-      ...this.mapMemberData(m),
-      profile: m.temporary_profiles
-    }));
+    const members = (groupData.group_members || []).map((m: any) => {
+      const memberData = this.mapMemberData(m);
+      // Supabase JOIN으로 가져온 profile 데이터 매핑
+      if (m.temporary_profiles) {
+        memberData.profile = m.temporary_profiles;
+      }
+      return memberData;
+    });
 
     return { group, members };
   }

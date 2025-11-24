@@ -90,6 +90,15 @@ export default function GroupLobby({ groupId, sessionId, isLeader, onKickMember,
       const result = await response.json();
 
       if (result.success) {
+        console.log('[GroupLobby] 그룹 데이터:', result.data);
+        console.log('[GroupLobby] 멤버 목록:', result.data.members);
+        result.data.members.forEach((m: any, idx: number) => {
+          console.log(`[GroupLobby] 멤버 ${idx + 1}:`, {
+            nickname: m.profile?.nickname,
+            tier: m.profile?.current_tier,
+            heroes: m.profile?.main_heroes
+          });
+        });
         const newMembers = result.data.members;
         const newStatus = result.data.group.status;
 
@@ -223,7 +232,7 @@ export default function GroupLobby({ groupId, sessionId, isLeader, onKickMember,
                   <div className="flex-1">
                     <div className="flex items-center gap-2">
                       <p className="font-semibold text-gray-800">
-                        {slot.member.profile?.nickname}
+                        {slot.member.profile?.nickname || '알 수 없음'}
                       </p>
                       {slot.member.isLeader && <span className="text-yellow-500">👑</span>}
                       {/* 티어 뱃지 */}
@@ -231,7 +240,7 @@ export default function GroupLobby({ groupId, sessionId, isLeader, onKickMember,
                         <span className="px-2 py-0.5 bg-purple-100 text-purple-700 text-xs font-semibold rounded">
                           {typeof slot.member.profile.current_tier === 'object' 
                             ? `${slot.member.profile.current_tier.rank} ${slot.member.profile.current_tier.division || ''}`
-                            : slot.member.profile.current_tier}
+                            : String(slot.member.profile.current_tier)}
                         </span>
                       )}
                     </div>

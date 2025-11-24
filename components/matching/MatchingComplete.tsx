@@ -39,8 +39,8 @@ export default function MatchingComplete({ members, onNewMatch }: MatchingComple
               </p>
               <p className="text-sm opacity-80">{member.profile?.battle_tag}</p>
               <p className="text-sm opacity-75">
-                티어: {member.profile?.current_tier?.Tank || 'N/A'} | 
-                영웅: {member.profile?.main_heroes?.Tank?.join(', ') || 'N/A'}
+                티어: {member.profile?.current_tier ? `${member.profile.current_tier.rank} ${member.profile.current_tier.division}` : 'N/A'} | 
+                영웅: {member.profile?.main_heroes?.join(', ') || 'N/A'}
               </p>
             </div>
           ))}
@@ -60,8 +60,8 @@ export default function MatchingComplete({ members, onNewMatch }: MatchingComple
               </p>
               <p className="text-sm opacity-80">{member.profile?.battle_tag}</p>
               <p className="text-sm opacity-75">
-                티어: {member.profile?.current_tier?.Damage || 'N/A'} | 
-                영웅: {member.profile?.main_heroes?.Damage?.join(', ') || 'N/A'}
+                티어: {member.profile?.current_tier ? `${member.profile.current_tier.rank} ${member.profile.current_tier.division}` : 'N/A'} | 
+                영웅: {member.profile?.main_heroes?.join(', ') || 'N/A'}
               </p>
             </div>
           ))}
@@ -81,8 +81,8 @@ export default function MatchingComplete({ members, onNewMatch }: MatchingComple
               </p>
               <p className="text-sm opacity-80">{member.profile?.battle_tag}</p>
               <p className="text-sm opacity-75">
-                티어: {member.profile?.current_tier?.Support || 'N/A'} | 
-                영웅: {member.profile?.main_heroes?.Support?.join(', ') || 'N/A'}
+                티어: {member.profile?.current_tier ? `${member.profile.current_tier.rank} ${member.profile.current_tier.division}` : 'N/A'} | 
+                영웅: {member.profile?.main_heroes?.join(', ') || 'N/A'}
               </p>
             </div>
           ))}
