@@ -220,13 +220,35 @@ export default function GroupLobby({ groupId, sessionId, isLeader, onKickMember,
 
                 {/* 멤버 정보 */}
                 {slot.member ? (
-                  <div>
-                    <p className="font-semibold text-gray-800">
-                      {slot.member.profile?.nickname}
-                      {slot.member.isLeader && <span className="ml-2 text-yellow-500">👑</span>}
-                    </p>
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2">
+                      <p className="font-semibold text-gray-800">
+                        {slot.member.profile?.nickname}
+                      </p>
+                      {slot.member.isLeader && <span className="text-yellow-500">👑</span>}
+                      {/* 티어 뱃지 */}
+                      {slot.member.profile?.current_tier && (
+                        <span className="px-2 py-0.5 bg-purple-100 text-purple-700 text-xs font-semibold rounded">
+                          {typeof slot.member.profile.current_tier === 'object' 
+                            ? `${slot.member.profile.current_tier.rank} ${slot.member.profile.current_tier.division || ''}`
+                            : slot.member.profile.current_tier}
+                        </span>
+                      )}
+                    </div>
                     <p className="text-sm text-gray-600">{slot.member.profile?.battle_tag}</p>
-                    <p className="text-xs text-gray-500">{slot.member.profile?.introduction}</p>
+                    {slot.member.profile?.introduction && (
+                      <p className="text-xs text-gray-500 mt-1">{slot.member.profile.introduction}</p>
+                    )}
+                    {/* 주요 영웅 */}
+                    {slot.member.profile?.main_heroes && Array.isArray(slot.member.profile.main_heroes) && slot.member.profile.main_heroes.length > 0 && (
+                      <div className="flex gap-1 mt-2 flex-wrap">
+                        {slot.member.profile.main_heroes.map((hero: string, idx: number) => (
+                          <span key={idx} className="px-2 py-0.5 bg-blue-50 text-blue-600 text-xs rounded border border-blue-200">
+                            {hero}
+                          </span>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 ) : (
                   <div>
