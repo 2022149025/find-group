@@ -5,7 +5,7 @@ export interface ProfileInput {
   nickname: string;
   battleTag: string;
   introduction?: string;
-  mainPosition: 'Tank' | 'Damage' | 'Support';
+  mainPosition: 'Tank' | 'Damage' | 'Support' | 'Flex';
   currentTier: Record<string, string>;
   mainHeroes: Record<string, string[]>;
 }
@@ -124,7 +124,7 @@ export class ProfileService {
       throw new Error('Introduction must be 50 characters or less');
     }
 
-    if (!['Tank', 'Damage', 'Support'].includes(input.mainPosition)) {
+    if (!['Tank', 'Damage', 'Support', 'Flex'].includes(input.mainPosition)) {
       throw new Error('Invalid main position');
     }
 

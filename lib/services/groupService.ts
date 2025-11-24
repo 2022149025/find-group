@@ -40,7 +40,7 @@ export interface GroupMember {
   id: string;
   groupId: string;
   sessionId: string;
-  position: 'Tank' | 'Damage' | 'Support';
+  position: 'Tank' | 'Damage' | 'Support' | 'Flex';
   isLeader: boolean;
   joinedAt: string;
   profile?: Profile;

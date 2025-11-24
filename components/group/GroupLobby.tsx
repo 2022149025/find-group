@@ -253,10 +253,21 @@ export default function GroupLobby({ groupId, sessionId, isLeader, onKickMember,
                     )}
                     {/* 주요 영웅 */}
                     {slot.member.profile?.main_heroes && (() => {
+                      // Flex 포지션은 영웅 표시 안 함
+                      if (slot.member.position === 'Flex') {
+                        return (
+                          <div className="mt-2">
+                            <span className="px-2 py-0.5 bg-purple-50 text-purple-600 text-xs rounded border border-purple-200">
+                              Flex (모든 포지션 가능)
+                            </span>
+                          </div>
+                        );
+                      }
+                      
                       // main_heroes가 배열이면 그대로 사용, 객체면 position에 맞는 배열 추출
                       const heroes = Array.isArray(slot.member.profile.main_heroes)
                         ? slot.member.profile.main_heroes
-                        : slot.member.profile.main_heroes[slot.member.position] || [];
+                        : (slot.member.profile.main_heroes as any)[slot.member.position] || [];
                       
                       return heroes.length > 0 && (
                         <div className="flex gap-1 mt-2 flex-wrap">

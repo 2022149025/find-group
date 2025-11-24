@@ -2,7 +2,7 @@
 
 interface ModeSelectorProps {
   sessionId: string;
-  position: 'Tank' | 'Damage' | 'Support';
+  position: 'Tank' | 'Damage' | 'Support' | 'Flex';
   onModeSelect: (mode: 'leader' | 'member') => void;
   loading?: boolean;
 }
