@@ -49,8 +49,7 @@ const HEROES: Record<string, Hero[]> = {
     { name: '트레이서', enName: 'Tracer', portrait: '/images/heroes/tracer.png' },
     { name: '파라', enName: 'Pharah', portrait: 'https://d15f34w2p8l1cc.cloudfront.net/overwatch/f8261595eca3e43e3b37cadb8161902cc416e38b7e0caa855f4555001156d814.png' },
     { name: '한조', enName: 'Hanzo', portrait: 'https://d15f34w2p8l1cc.cloudfront.net/overwatch/aecd8fa677f0093344fab7ccb7c37516c764df3f5ff339a5a845a030a27ba7e0.png' },
-    { name: '프레야', enName: 'Freya', portrait: '/images/heroes/freya.png' },
-    { name: '우양', enName: 'Wuyang', portrait: '/images/heroes/wuyang.png' }
+    { name: '프레야', enName: 'Freya', portrait: '/images/heroes/freya.png' }
   ].sort((a, b) => a.name.localeCompare(b.name, 'ko')),
   
   Support: [
@@ -64,7 +63,8 @@ const HEROES: Record<string, Hero[]> = {
     { name: '주노', enName: 'Juno', portrait: '/images/heroes/juno.png' },
     { name: '키리코', enName: 'Kiriko', portrait: 'https://d15f34w2p8l1cc.cloudfront.net/overwatch/088aff2153bdfa426984b1d5c912f6af0ab313f0865a81be0edd114e9a2f79f9.png' },
     { name: '젠야타', enName: 'Zenyatta', portrait: '/images/heroes/zenyatta.png' },
-    { name: '일리아리', enName: 'Illari', portrait: '/images/heroes/illari.png' }
+    { name: '일리아리', enName: 'Illari', portrait: '/images/heroes/illari.png' },
+    { name: '우양', enName: 'Wuyang', portrait: '/images/heroes/wuyang.png' }
   ].sort((a, b) => a.name.localeCompare(b.name, 'ko')),
   
   Flex: []
