@@ -203,12 +203,9 @@ export default function Home() {
     <main className="min-h-screen bg-gradient-to-br from-gray-100 to-gray-200 py-8 px-4">
       {/* 헤더 */}
       <div className="max-w-6xl mx-auto mb-8">
-        <h1 className="text-4xl font-bold text-center text-gray-800 mb-2">
-          오버워치 그룹 매칭
+        <h1 className="text-4xl font-bold text-center text-gray-800">
+          오버워치 5인큐 매칭
         </h1>
-        <p className="text-center text-gray-600">
-          1 Tank - 2 Damage - 2 Support 역할 고정 5인 매칭
-        </p>
       </div>
 
       {/* 에러 메시지 */}
@@ -237,9 +234,6 @@ export default function Home() {
             <h2 className="text-3xl font-bold text-gray-800 mb-4">
               빠른 그룹 매칭 시작하기
             </h2>
-            <p className="text-gray-600 mb-8">
-              회원가입 없이 간편하게 오버워치 5인 그룹을 구성하세요
-            </p>
             <button
               onClick={() => setStep('profile')}
               className="px-8 py-3 bg-blue-600 text-white font-bold rounded-lg hover:bg-blue-700 transition"
@@ -249,27 +243,10 @@ export default function Home() {
           </div>
 
           {/* 서비스 설명 */}
-          <div className="mt-8 grid md:grid-cols-3 gap-6">
-            <div className="bg-white rounded-lg shadow p-6 text-center">
-              <div className="text-4xl mb-3">⚡</div>
-              <h3 className="font-bold text-gray-800 mb-2">빠른 매칭</h3>
-              <p className="text-sm text-gray-600">
-                자동 그룹 매칭으로 빠르게 팀을 구성하세요
-              </p>
-            </div>
+          <div className="mt-8 grid md:grid-cols-1 gap-6">
             <div className="bg-white rounded-lg shadow p-6 text-center">
               <div className="text-4xl mb-3">🎯</div>
-              <h3 className="font-bold text-gray-800 mb-2">역할 고정</h3>
-              <p className="text-sm text-gray-600">
-                1T-2D-2H 밸런스 잡힌 팀 구성
-              </p>
-            </div>
-            <div className="bg-white rounded-lg shadow p-6 text-center">
-              <div className="text-4xl mb-3">🔒</div>
-              <h3 className="font-bold text-gray-800 mb-2">간편 이용</h3>
-              <p className="text-sm text-gray-600">
-                회원가입 없이 즉시 이용 가능
-              </p>
+              <h3 className="font-bold text-gray-800 mb-2">역할 고정: 1탱2딜2힐 역할고정 매칭</h3>
             </div>
           </div>
         </div>
