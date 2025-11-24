@@ -26,7 +26,8 @@ const HEROES: Record<string, Hero[]> = {
     { name: '윈스턴', enName: 'Winston', portrait: 'https://d15f34w2p8l1cc.cloudfront.net/overwatch/bd9c8e634d89488459dfc1aeb21b602fa5c39aa05601a4167682f3a3fed4e0ee.png' },
     { name: '자리야', enName: 'Zarya', portrait: 'https://d15f34w2p8l1cc.cloudfront.net/overwatch/8819ba85823136640d8eba2af6fd7b19d46b9ee8ab192a4e06f396d1e5231f7a.png' },
     { name: '정커퀸', enName: 'Junker Queen', portrait: 'https://d15f34w2p8l1cc.cloudfront.net/overwatch/cef2406b2244b80506f83b8fb9ebaf214f41fa8795cbeef84026cd8018561d04.png' },
-    { name: '시그마', enName: 'Sigma', portrait: 'https://d15f34w2p8l1cc.cloudfront.net/overwatch/cd7a4c0a0df8924afb2c9f6df864ed040f20250440c36ca2eb634acf6609c5e4.png' }
+    { name: '시그마', enName: 'Sigma', portrait: 'https://d15f34w2p8l1cc.cloudfront.net/overwatch/cd7a4c0a0df8924afb2c9f6df864ed040f20250440c36ca2eb634acf6609c5e4.png' },
+    { name: '해저드', enName: 'Hazard', portrait: '/images/heroes/hazard.png' }
   ].sort((a, b) => a.name.localeCompare(b.name, 'ko')),
   
   Damage: [
@@ -47,7 +48,9 @@ const HEROES: Record<string, Hero[]> = {
     { name: '토르비욘', enName: 'Torbjörn', portrait: '/images/heroes/torbjorn.png' },
     { name: '트레이서', enName: 'Tracer', portrait: '/images/heroes/tracer.png' },
     { name: '파라', enName: 'Pharah', portrait: 'https://d15f34w2p8l1cc.cloudfront.net/overwatch/f8261595eca3e43e3b37cadb8161902cc416e38b7e0caa855f4555001156d814.png' },
-    { name: '한조', enName: 'Hanzo', portrait: 'https://d15f34w2p8l1cc.cloudfront.net/overwatch/aecd8fa677f0093344fab7ccb7c37516c764df3f5ff339a5a845a030a27ba7e0.png' }
+    { name: '한조', enName: 'Hanzo', portrait: 'https://d15f34w2p8l1cc.cloudfront.net/overwatch/aecd8fa677f0093344fab7ccb7c37516c764df3f5ff339a5a845a030a27ba7e0.png' },
+    { name: '프레야', enName: 'Freya', portrait: '/images/heroes/freya.png' },
+    { name: '우양', enName: 'Wuyang', portrait: '/images/heroes/wuyang.png' }
   ].sort((a, b) => a.name.localeCompare(b.name, 'ko')),
   
   Support: [
@@ -60,7 +63,8 @@ const HEROES: Record<string, Hero[]> = {
     { name: '아나', enName: 'Ana', portrait: 'https://d15f34w2p8l1cc.cloudfront.net/overwatch/3429c394716364bbef802180e9763d04812757c205e1b4568bc321772096ed86.png' },
     { name: '주노', enName: 'Juno', portrait: '/images/heroes/juno.png' },
     { name: '키리코', enName: 'Kiriko', portrait: 'https://d15f34w2p8l1cc.cloudfront.net/overwatch/088aff2153bdfa426984b1d5c912f6af0ab313f0865a81be0edd114e9a2f79f9.png' },
-    { name: '젠야타', enName: 'Zenyatta', portrait: '/images/heroes/zenyatta.png' }
+    { name: '젠야타', enName: 'Zenyatta', portrait: '/images/heroes/zenyatta.png' },
+    { name: '일리아리', enName: 'Illari', portrait: '/images/heroes/illari.png' }
   ].sort((a, b) => a.name.localeCompare(b.name, 'ko')),
   
   Flex: []
