@@ -39,8 +39,14 @@ export default function MatchingComplete({ members, onNewMatch }: MatchingComple
               </p>
               <p className="text-sm opacity-80">{member.profile?.battle_tag}</p>
               <p className="text-sm opacity-75">
-                티어: {member.profile?.current_tier ? `${member.profile.current_tier.rank} ${member.profile.current_tier.division}` : 'N/A'} | 
-                영웅: {member.profile?.main_heroes?.join(', ') || 'N/A'}
+                티어: {(() => {
+                  const tier = member.profile?.current_tier as any;
+                  return tier ? (tier[member.position] || tier.rank || Object.values(tier)[0] || 'N/A') : 'N/A';
+                })()} | 
+                영웅: {(() => {
+                  const heroes = member.profile?.main_heroes as any;
+                  return heroes ? (Array.isArray(heroes) ? heroes.join(', ') : (heroes[member.position]?.join(', ') || 'N/A')) : 'N/A';
+                })()}
               </p>
             </div>
           ))}
@@ -60,8 +66,14 @@ export default function MatchingComplete({ members, onNewMatch }: MatchingComple
               </p>
               <p className="text-sm opacity-80">{member.profile?.battle_tag}</p>
               <p className="text-sm opacity-75">
-                티어: {member.profile?.current_tier ? `${member.profile.current_tier.rank} ${member.profile.current_tier.division}` : 'N/A'} | 
-                영웅: {member.profile?.main_heroes?.join(', ') || 'N/A'}
+                티어: {(() => {
+                  const tier = member.profile?.current_tier as any;
+                  return tier ? (tier[member.position] || tier.rank || Object.values(tier)[0] || 'N/A') : 'N/A';
+                })()} | 
+                영웅: {(() => {
+                  const heroes = member.profile?.main_heroes as any;
+                  return heroes ? (Array.isArray(heroes) ? heroes.join(', ') : (heroes[member.position]?.join(', ') || 'N/A')) : 'N/A';
+                })()}
               </p>
             </div>
           ))}
@@ -81,8 +93,14 @@ export default function MatchingComplete({ members, onNewMatch }: MatchingComple
               </p>
               <p className="text-sm opacity-80">{member.profile?.battle_tag}</p>
               <p className="text-sm opacity-75">
-                티어: {member.profile?.current_tier ? `${member.profile.current_tier.rank} ${member.profile.current_tier.division}` : 'N/A'} | 
-                영웅: {member.profile?.main_heroes?.join(', ') || 'N/A'}
+                티어: {(() => {
+                  const tier = member.profile?.current_tier as any;
+                  return tier ? (tier[member.position] || tier.rank || Object.values(tier)[0] || 'N/A') : 'N/A';
+                })()} | 
+                영웅: {(() => {
+                  const heroes = member.profile?.main_heroes as any;
+                  return heroes ? (Array.isArray(heroes) ? heroes.join(', ') : (heroes[member.position]?.join(', ') || 'N/A')) : 'N/A';
+                })()}
               </p>
             </div>
           ))}

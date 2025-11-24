@@ -7,10 +7,18 @@ export interface Profile {
   battle_tag: string;
   main_position: 'Tank' | 'Damage' | 'Support';
   current_tier: {
+    Tank?: string;
+    Damage?: string;
+    Support?: string;
+  } | {
     rank: string;
     division: number;
   };
-  main_heroes: string[];
+  main_heroes: string[] | {
+    Tank?: string[];
+    Damage?: string[];
+    Support?: string[];
+  };
   introduction: string;
   created_at: string;
   expires_at: string;

@@ -237,28 +237,37 @@ export default function GroupLobby({ groupId, sessionId, isLeader, onKickMember,
                       </p>
                       {slot.member.isLeader && <span className="text-yellow-500">👑</span>}
                       {/* 티어 뱃지 */}
-                      {slot.member.profile?.current_tier && (
-                        <span className="px-2 py-0.5 bg-purple-100 text-purple-700 text-xs font-semibold rounded">
-                          {typeof slot.member.profile.current_tier === 'object' 
-                            ? `${slot.member.profile.current_tier.rank} ${slot.member.profile.current_tier.division || ''}`
-                            : String(slot.member.profile.current_tier)}
-                        </span>
-                      )}
+                      {slot.member.profile?.current_tier && (() => {
+                        const tier = slot.member.profile.current_tier as any;
+                        const displayTier = tier[slot.member.position] || tier.rank || Object.values(tier)[0] || 'N/A';
+                        return (
+                          <span className="px-2 py-0.5 bg-purple-100 text-purple-700 text-xs font-semibold rounded">
+                            {displayTier}
+                          </span>
+                        );
+                      })()}
                     </div>
                     <p className="text-sm text-gray-600">{slot.member.profile?.battle_tag}</p>
                     {slot.member.profile?.introduction && (
                       <p className="text-xs text-gray-500 mt-1">{slot.member.profile.introduction}</p>
                     )}
                     {/* 주요 영웅 */}
-                    {slot.member.profile?.main_heroes && Array.isArray(slot.member.profile.main_heroes) && slot.member.profile.main_heroes.length > 0 && (
-                      <div className="flex gap-1 mt-2 flex-wrap">
-                        {slot.member.profile.main_heroes.map((hero: string, idx: number) => (
-                          <span key={idx} className="px-2 py-0.5 bg-blue-50 text-blue-600 text-xs rounded border border-blue-200">
-                            {hero}
-                          </span>
-                        ))}
-                      </div>
-                    )}
+                    {slot.member.profile?.main_heroes && (() => {
+                      // main_heroes가 배열이면 그대로 사용, 객체면 position에 맞는 배열 추출
+                      const heroes = Array.isArray(slot.member.profile.main_heroes)
+                        ? slot.member.profile.main_heroes
+                        : slot.member.profile.main_heroes[slot.member.position] || [];
+                      
+                      return heroes.length > 0 && (
+                        <div className="flex gap-1 mt-2 flex-wrap">
+                          {heroes.map((hero: string, idx: number) => (
+                            <span key={idx} className="px-2 py-0.5 bg-blue-50 text-blue-600 text-xs rounded border border-blue-200">
+                              {hero}
+                            </span>
+                          ))}
+                        </div>
+                      );
+                    })()}
                   </div>
                 ) : (
                   <div>
