@@ -90,14 +90,15 @@ export default function GroupLobby({ groupId, sessionId, isLeader, onKickMember,
       const result = await response.json();
 
       if (result.success) {
-        console.log('[GroupLobby] 그룹 데이터:', result.data);
+        console.log('[GroupLobby] 그룹 데이터:', JSON.stringify(result.data, null, 2));
         console.log('[GroupLobby] 멤버 목록:', result.data.members);
         result.data.members.forEach((m: any, idx: number) => {
-          console.log(`[GroupLobby] 멤버 ${idx + 1}:`, {
+          console.log(`[GroupLobby] 멤버 ${idx + 1}:`, JSON.stringify({
             nickname: m.profile?.nickname,
             tier: m.profile?.current_tier,
-            heroes: m.profile?.main_heroes
-          });
+            heroes: m.profile?.main_heroes,
+            fullProfile: m.profile
+          }, null, 2));
         });
         const newMembers = result.data.members;
         const newStatus = result.data.group.status;
