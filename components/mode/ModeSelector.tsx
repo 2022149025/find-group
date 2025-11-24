@@ -15,6 +15,11 @@ export default function ModeSelector({ sessionId, position, onModeSelect, loadin
       </h2>
       <p className="text-center text-gray-600 mb-8">
         주 포지션: <span className="font-semibold text-blue-600">{position}</span>
+        {position === 'Flex' && (
+          <span className="block text-sm text-purple-600 mt-1">
+            그룹장: Tank로 자동 배정 | 그룹원: 빈 자리에 자동 배정
+          </span>
+        )}
       </p>
 
       <div className="grid md:grid-cols-2 gap-6">
