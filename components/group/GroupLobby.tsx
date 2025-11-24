@@ -58,34 +58,23 @@ export default function GroupLobby({ groupId, sessionId, isLeader, onKickMember,
     };
   }, [status, groupId, sessionId]);
 
-  // visibilitychange 이벤트: 탭 전환/뒤로가기 감지
+  // beforeunload 이벤트: 페이지를 실제로 떠날 때만 감지
   useEffect(() => {
-    const handleVisibilityChange = () => {
-      if (document.hidden && status !== 'matched') {
-        // 페이지가 숨겨질 때 (탭 전환, 뒤로가기 등)
-        leaveGroup();
-      }
-    };
-
-    document.addEventListener('visibilitychange', handleVisibilityChange);
-
-    return () => {
-      document.removeEventListener('visibilitychange', handleVisibilityChange);
-    };
-  }, [status, groupId, sessionId]);
-
-  // pagehide 이벤트: iOS Safari 등에서 페이지 이탈 감지
-  useEffect(() => {
-    const handlePageHide = () => {
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
       if (status !== 'matched') {
+        // 페이지를 떠날 때 그룹 탈퇴
         leaveGroup();
+        
+        // 사용자에게 경고 (선택사항)
+        e.preventDefault();
+        e.returnValue = '';
       }
     };
 
-    window.addEventListener('pagehide', handlePageHide);
+    window.addEventListener('beforeunload', handleBeforeUnload);
 
     return () => {
-      window.removeEventListener('pagehide', handlePageHide);
+      window.removeEventListener('beforeunload', handleBeforeUnload);
     };
   }, [status, groupId, sessionId]);
 
