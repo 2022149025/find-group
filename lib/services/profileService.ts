@@ -132,8 +132,11 @@ export class ProfileService {
       throw new Error('Current tier is required');
     }
 
-    if (!input.mainHeroes || Object.keys(input.mainHeroes).length === 0) {
-      throw new Error('Main heroes are required');
+    // Flex 포지션은 영웅 선택 불필요
+    if (input.mainPosition !== 'Flex') {
+      if (!input.mainHeroes || Object.keys(input.mainHeroes).length === 0) {
+        throw new Error('Main heroes are required');
+      }
     }
   }
 }

@@ -102,8 +102,11 @@ export default function ProfileForm({ onSubmit, loading = false }: ProfileFormPr
       newErrors.currentTier = '최소 하나의 티어를 선택해주세요';
     }
 
-    if (!formData.mainHeroes || Object.keys(formData.mainHeroes).length === 0) {
-      newErrors.mainHeroes = '최소 하나의 영웅을 선택해주세요';
+    // Flex 포지션은 영웅 선택 불필요
+    if (formData.mainPosition !== 'Flex') {
+      if (!formData.mainHeroes || Object.keys(formData.mainHeroes).length === 0) {
+        newErrors.mainHeroes = '최소 하나의 영웅을 선택해주세요';
+      }
     }
 
     setErrors(newErrors);
