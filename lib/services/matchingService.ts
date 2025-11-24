@@ -10,14 +10,44 @@ export class MatchingService {
   /**
    * UC-211: 자동 그룹 매칭 (그룹원으로 시작)
    */
-  async autoMatchGroup(sessionId: string, position: 'Tank' | 'Damage' | 'Support'): Promise<{ groupId: string; joined: boolean }> {
+  async autoMatchGroup(sessionId: string, position: 'Tank' | 'Damage' | 'Support' | 'Flex'): Promise<{ groupId: string; joined: boolean; assignedPosition?: 'Tank' | 'Damage' | 'Support' }> {
     // 대기 중인 그룹 조회
     const waitingGroups = await this.groupService.getWaitingGroups();
     
     console.log(`[MatchingService] 대기 중인 그룹 수: ${waitingGroups.length}`);
     console.log(`[MatchingService] 찾는 포지션: ${position}`);
 
-    // 해당 포지션에 빈자리가 있는 그룹 찾기
+    // Flex 포지션: 모든 빈자리에 들어갈 수 있음
+    if (position === 'Flex') {
+      // 빈자리가 있는 첫 번째 그룹 찾기 (우선순위: Tank > Damage > Support)
+      for (const group of waitingGroups) {
+        let assignedPosition: 'Tank' | 'Damage' | 'Support' | null = null;
+        
+        if (group.tankCount < 1) {
+          assignedPosition = 'Tank';
+        } else if (group.damageCount < 2) {
+          assignedPosition = 'Damage';
+        } else if (group.supportCount < 2) {
+          assignedPosition = 'Support';
+        }
+        
+        if (assignedPosition) {
+          try {
+            console.log(`[MatchingService] Flex → ${assignedPosition} 배정, 그룹: ${group.id}`);
+            await this.groupService.joinGroup(group.id, sessionId, assignedPosition);
+            return { groupId: group.id, joined: true, assignedPosition };
+          } catch (error) {
+            console.error(`[MatchingService] Flex 그룹 참가 실패:`, error);
+            continue; // 다음 그룹 시도
+          }
+        }
+      }
+      
+      console.log(`[MatchingService] Flex 포지션: 적합한 그룹 없음`);
+      return { groupId: '', joined: false };
+    }
+
+    // 일반 포지션: 해당 포지션에 빈자리가 있는 그룹 찾기
     const suitableGroup = waitingGroups.find(group => {
       let hasSpace = false;
       switch (position) {
@@ -60,11 +90,16 @@ export class MatchingService {
   /**
    * 매칭 가능한 그룹 목록 조회 (선택적 매칭을 위한 기능)
    */
-  async findMatchableGroups(position: 'Tank' | 'Damage' | 'Support', limit: number = 10): Promise<any[]> {
+  async findMatchableGroups(position: 'Tank' | 'Damage' | 'Support' | 'Flex', limit: number = 10): Promise<any[]> {
     const waitingGroups = await this.groupService.getWaitingGroups();
 
     const matchableGroups = waitingGroups
       .filter(group => {
+        // Flex는 모든 빈자리에 매칭 가능
+        if (position === 'Flex') {
+          return group.tankCount < 1 || group.damageCount < 2 || group.supportCount < 2;
+        }
+        
         switch (position) {
           case 'Tank':
             return group.tankCount < 1;

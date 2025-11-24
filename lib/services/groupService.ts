@@ -72,17 +72,22 @@ export class GroupService {
   /**
    * UC-210: 그룹장으로 그룹 생성
    */
-  async createGroup(leaderSessionId: string, leaderPosition: 'Tank' | 'Damage' | 'Support'): Promise<Group> {
+  async createGroup(leaderSessionId: string, leaderPosition: 'Tank' | 'Damage' | 'Support' | 'Flex'): Promise<Group> {
     console.log('[GroupService] 그룹 생성 시작:', { leaderSessionId, leaderPosition });
+    
+    // Flex는 Tank로 기본 배정 (그룹장이 선택)
+    const actualPosition: 'Tank' | 'Damage' | 'Support' = leaderPosition === 'Flex' ? 'Tank' : leaderPosition;
+    
+    console.log('[GroupService] 실제 배정 포지션:', actualPosition);
     
     // 그룹 생성
     const { data: groupData, error: groupError } = await this.supabase
       .from('groups')
       .insert({
         leader_session_id: leaderSessionId,
-        tank_count: leaderPosition === 'Tank' ? 1 : 0,
-        damage_count: leaderPosition === 'Damage' ? 1 : 0,
-        support_count: leaderPosition === 'Support' ? 1 : 0,
+        tank_count: actualPosition === 'Tank' ? 1 : 0,
+        damage_count: actualPosition === 'Damage' ? 1 : 0,
+        support_count: actualPosition === 'Support' ? 1 : 0,
         total_members: 1,
         status: 'waiting'
       })
@@ -97,16 +102,16 @@ export class GroupService {
     console.log('[GroupService] 그룹 생성 성공:', {
       id: groupData.id,
       status: groupData.status,
-      position: leaderPosition
+      position: actualPosition
     });
 
-    // 그룹장을 멤버로 추가
+    // 그룹장을 멤버로 추가 (실제 배정된 포지션으로)
     const { error: memberError } = await this.supabase
       .from('group_members')
       .insert({
         group_id: groupData.id,
         session_id: leaderSessionId,
-        position: leaderPosition,
+        position: actualPosition,
         is_leader: true
       });
 
