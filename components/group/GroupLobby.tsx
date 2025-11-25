@@ -332,45 +332,76 @@ export default function GroupLobby({ groupId, sessionId, isLeader, onKickMember,
                           {member.profile?.nickname || '알 수 없음'}
                         </p>
                         {member.isLeader && <span className="text-yellow-500">👑</span>}
-                        <span className="px-2 py-0.5 bg-purple-100 text-purple-700 text-xs font-semibold rounded">
-                          Flex (모든 포지션 가능)
-                        </span>
                       </div>
                       <p className="text-sm text-gray-600">{member.profile?.battle_tag}</p>
                       {member.profile?.introduction && (
                         <p className="text-xs text-gray-500 mt-1">{member.profile.introduction}</p>
                       )}
-                      {/* 포지션별 티어 표시 */}
-                      {member.profile?.current_tier && (() => {
-                        const tier = member.profile.current_tier as any;
+                      {/* 주요 영웅 (포지션별) */}
+                      {member.profile?.main_heroes && (() => {
+                        const mainHeroes = member.profile.main_heroes as any;
+                        const positions = ['Tank', 'Damage', 'Support'];
+                        
                         return (
-                          <div className="flex gap-2 mt-2 flex-wrap">
-                            {tier.Tank && (
-                              <span className="px-2 py-0.5 bg-blue-50 text-blue-600 text-xs rounded border border-blue-200">
-                                Tank: {tier.Tank}
-                              </span>
-                            )}
-                            {tier.Damage && (
-                              <span className="px-2 py-0.5 bg-red-50 text-red-600 text-xs rounded border border-red-200">
-                                Damage: {tier.Damage}
-                              </span>
-                            )}
-                            {tier.Support && (
-                              <span className="px-2 py-0.5 bg-green-50 text-green-600 text-xs rounded border border-green-200">
-                                Support: {tier.Support}
-                              </span>
-                            )}
+                          <div className="mt-2 space-y-1">
+                            {positions.map((pos) => {
+                              const heroes = mainHeroes[pos] || [];
+                              if (heroes.length === 0) return null;
+                              
+                              return (
+                                <div key={pos} className="flex items-center gap-2 flex-wrap">
+                                  <span className={`px-1.5 py-0.5 text-xs font-semibold rounded ${
+                                    pos === 'Tank' ? 'bg-blue-100 text-blue-700' :
+                                    pos === 'Damage' ? 'bg-red-100 text-red-700' :
+                                    'bg-green-100 text-green-700'
+                                  }`}>
+                                    {pos}:
+                                  </span>
+                                  {heroes.map((hero: string, idx: number) => (
+                                    <span key={idx} className="px-2 py-0.5 bg-blue-50 text-blue-600 text-xs rounded border border-blue-200">
+                                      {hero}
+                                    </span>
+                                  ))}
+                                </div>
+                              );
+                            })}
                           </div>
                         );
                       })()}
                     </div>
                   </div>
 
+                  {/* 티어 배지 (오른쪽) - 포지션별 */}
+                  <div className="flex flex-col gap-1 ml-4">
+                    {member.profile?.current_tier && (() => {
+                      const tier = member.profile.current_tier as any;
+                      return (
+                        <>
+                          {tier.Tank && (
+                            <span className="px-3 py-1 bg-blue-500 text-white text-sm font-semibold rounded text-center min-w-[80px]">
+                              {tier.Tank}
+                            </span>
+                          )}
+                          {tier.Damage && (
+                            <span className="px-3 py-1 bg-red-500 text-white text-sm font-semibold rounded text-center min-w-[80px]">
+                              {tier.Damage}
+                            </span>
+                          )}
+                          {tier.Support && (
+                            <span className="px-3 py-1 bg-green-500 text-white text-sm font-semibold rounded text-center min-w-[80px]">
+                              {tier.Support}
+                            </span>
+                          )}
+                        </>
+                      );
+                    })()}
+                  </div>
+
                   {/* 강제 퇴장 버튼 (그룹장 전용) */}
                   {isLeader && !member.isLeader && (
                     <button
                       onClick={() => handleKick(member.sessionId)}
-                      className="px-3 py-1 bg-red-500 text-white text-sm rounded hover:bg-red-600 transition"
+                      className="px-3 py-1 bg-red-500 text-white text-sm rounded hover:bg-red-600 transition ml-2"
                     >
                       퇴장
                     </button>
