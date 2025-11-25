@@ -12,7 +12,15 @@ const categoryLabels: Record<Category, string> = {
   other: '💬 기타 문의'
 };
 
+// 관리자 PIN 코드 (환경변수 또는 하드코딩)
+const ADMIN_PIN = process.env.NEXT_PUBLIC_ADMIN_PIN || '1234';
+
 export default function AdminInquiriesPage() {
+  // 인증 상태
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [pinInput, setPinInput] = useState('');
+  const [authError, setAuthError] = useState('');
+
   const [inquiries, setInquiries] = useState<Inquiry[]>([]);
   const [filteredInquiries, setFilteredInquiries] = useState<Inquiry[]>([]);
   const [loading, setLoading] = useState(true);
@@ -23,6 +31,35 @@ export default function AdminInquiriesPage() {
   const [replyingTo, setReplyingTo] = useState<string | null>(null);
   const [replyText, setReplyText] = useState('');
   const [submitting, setSubmitting] = useState(false);
+
+  // 세션 스토리지에서 인증 상태 복구
+  useEffect(() => {
+    const authenticated = sessionStorage.getItem('admin_authenticated');
+    if (authenticated === 'true') {
+      setIsAuthenticated(true);
+    }
+  }, []);
+
+  // 관리자 인증
+  const handleAuth = (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (pinInput === ADMIN_PIN) {
+      setIsAuthenticated(true);
+      sessionStorage.setItem('admin_authenticated', 'true');
+      setAuthError('');
+    } else {
+      setAuthError('관리자 번호가 올바르지 않습니다.');
+      setPinInput('');
+    }
+  };
+
+  // 로그아웃
+  const handleLogout = () => {
+    setIsAuthenticated(false);
+    sessionStorage.removeItem('admin_authenticated');
+    setPinInput('');
+  };
 
   // 문의 목록 조회
   const fetchInquiries = async () => {
@@ -106,8 +143,72 @@ export default function AdminInquiriesPage() {
 
   // 초기 로드
   useEffect(() => {
-    fetchInquiries();
-  }, []);
+    if (isAuthenticated) {
+      fetchInquiries();
+    }
+  }, [isAuthenticated]);
+
+  // 인증되지 않은 경우 로그인 화면 표시
+  if (!isAuthenticated) {
+    return (
+      <main className="min-h-screen bg-gradient-to-br from-gray-100 to-gray-200 py-8 px-4 flex items-center justify-center">
+        <div className="max-w-md w-full">
+          <div className="bg-white rounded-lg shadow-2xl p-8">
+            <div className="text-center mb-8">
+              <div className="text-6xl mb-4">🔒</div>
+              <h1 className="text-3xl font-bold text-gray-800 mb-2">관리자 인증</h1>
+              <p className="text-gray-600">관리자 번호를 입력해주세요</p>
+            </div>
+
+            <form onSubmit={handleAuth}>
+              <div className="mb-6">
+                <label className="block text-gray-700 font-semibold mb-2">
+                  관리자 번호
+                </label>
+                <input
+                  type="password"
+                  value={pinInput}
+                  onChange={(e) => setPinInput(e.target.value)}
+                  className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:border-blue-500 focus:outline-none text-center text-2xl tracking-widest"
+                  placeholder="••••"
+                  maxLength={4}
+                  autoFocus
+                  required
+                />
+              </div>
+
+              {authError && (
+                <div className="mb-4 p-3 bg-red-100 border-2 border-red-400 rounded-lg">
+                  <p className="text-red-700 text-center">{authError}</p>
+                </div>
+              )}
+
+              <button
+                type="submit"
+                className="w-full py-3 bg-blue-600 text-white font-bold rounded-lg hover:bg-blue-700 transition"
+              >
+                인증하기
+              </button>
+
+              <button
+                type="button"
+                onClick={() => window.location.href = '/'}
+                className="w-full mt-3 py-3 bg-gray-400 text-white font-semibold rounded-lg hover:bg-gray-500 transition"
+              >
+                홈으로 돌아가기
+              </button>
+            </form>
+
+            <div className="mt-6 p-4 bg-blue-50 rounded-lg">
+              <p className="text-sm text-gray-600 text-center">
+                💡 기본 관리자 번호는 <code className="bg-gray-200 px-2 py-1 rounded">1234</code>입니다.
+              </p>
+            </div>
+          </div>
+        </div>
+      </main>
+    );
+  }
 
   return (
     <main className="min-h-screen bg-gradient-to-br from-gray-100 to-gray-200 py-8 px-4">
@@ -118,12 +219,20 @@ export default function AdminInquiriesPage() {
             <h1 className="text-4xl font-bold text-gray-800">관리자 - 문의 관리</h1>
             <p className="text-gray-600 mt-2">사용자 문의를 확인하고 답변할 수 있습니다.</p>
           </div>
-          <button
-            onClick={() => window.location.href = '/'}
-            className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition"
-          >
-            홈으로
-          </button>
+          <div className="flex gap-2">
+            <button
+              onClick={handleLogout}
+              className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition"
+            >
+              🔓 로그아웃
+            </button>
+            <button
+              onClick={() => window.location.href = '/'}
+              className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition"
+            >
+              홈으로
+            </button>
+          </div>
         </div>
       </div>
 

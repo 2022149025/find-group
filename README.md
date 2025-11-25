@@ -24,6 +24,7 @@
 ✅ 그룹장 권한 자동 인계 (그룹장 퇴장 시)
 ✅ 수동 그룹 나가기 버튼
 ✅ 1:1 문의 시스템 (버그 신고, 기능 요청, 개선 제안) 🆕
+✅ 관리자 페이지 (PIN 인증, 문의 답변) 🆕
 
 ## 현재 기능 엔트리 URI
 
@@ -49,6 +50,15 @@
   - Body: `{ name, email, category, title, content }`
   - category: 'bug' | 'feature' | 'suggestion' | 'other'
 - `GET /api/inquiry/list?email={email}` - 사용자별 문의 목록 조회
+- `GET /api/inquiry/admin` - 관리자용 문의 목록 조회 🔐
+  - Query: `?status=all|pending|answered`
+- `POST /api/inquiry/reply` - 관리자용 답변 등록 🔐
+  - Body: `{ inquiryId, adminReply }`
+
+### 관리자 페이지 🔐
+- `/admin/inquiries` - 문의 관리 페이지 (PIN 인증 필요)
+  - 기본 PIN: `1234`
+  - 환경변수로 변경 가능: `NEXT_PUBLIC_ADMIN_PIN`
 
 ## 미구현 기능
 - WebSocket 실시간 알림 (현재는 5초 폴링 방식 사용)
