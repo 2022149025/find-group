@@ -18,7 +18,13 @@ export default function MatchingComplete({ members, onNewMatch }: MatchingComple
       <div className="text-center mb-8">
         <div className="text-6xl mb-4 animate-bounce">🎉</div>
         <h1 className="text-4xl font-bold mb-2">매칭 완료!</h1>
-        <p className="text-xl opacity-90">1 Tank - 2 Damage - 2 Support</p>
+        <p className="text-xl opacity-90 mb-3">1 Tank - 2 Damage - 2 Support</p>
+        <div className="bg-yellow-400/20 border-2 border-yellow-400 rounded-lg p-4 mt-4">
+          <p className="text-lg font-semibold flex items-center justify-center gap-2">
+            <span className="text-2xl">👥</span>
+            배틀태그로 친구추가를 하고 그룹을 이루세요!
+          </p>
+        </div>
       </div>
 
       {/* 팀 구성 */}

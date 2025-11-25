@@ -355,11 +355,23 @@ export class GroupService {
       .eq('id', groupId)
       .single();
 
-    if (!groupData) return;
+    if (!groupData) {
+      console.log('[checkMatchingComplete] Group not found');
+      return;
+    }
+
+    console.log('[checkMatchingComplete] Group state:', {
+      groupId,
+      total_members: groupData.total_members,
+      tank_count: groupData.tank_count,
+      damage_count: groupData.damage_count,
+      support_count: groupData.support_count,
+      status: groupData.status
+    });
 
     // 5명이 모였는지 확인
     if (groupData.total_members === 5 && groupData.status === 'waiting') {
-      console.log('[GroupService] 5명 달성, Flex 멤버 자동 배정 시작');
+      console.log('[checkMatchingComplete] 5명 달성! Flex 자동 배정 시작');
 
       // 현재 그룹의 모든 멤버 조회
       const { data: members } = await this.supabase
@@ -367,15 +379,20 @@ export class GroupService {
         .select('*')
         .eq('group_id', groupId);
 
-      if (!members) return;
+      if (!members) {
+        console.log('[checkMatchingComplete] No members found');
+        return;
+      }
+
+      console.log('[checkMatchingComplete] Members:', members.map(m => ({ id: m.id, position: m.position })));
 
       // Flex 멤버 찾기
       const flexMembers = members.filter(m => m.position === 'Flex');
       
       if (flexMembers.length > 0) {
-        console.log('[GroupService] Flex 멤버 수:', flexMembers.length);
+        console.log('[checkMatchingComplete] Flex 멤버 발견:', flexMembers.length, '명');
 
-        // 현재 필요한 포지션 계산 (1T-2D-2H 기준)
+        // 현재 필요한 포지션 계산 (1T-2D-2S 기준)
         const neededPositions: ('Tank' | 'Damage' | 'Support')[] = [];
         const tankNeeded = 1 - groupData.tank_count;
         const damageNeeded = 2 - groupData.damage_count;
@@ -385,7 +402,7 @@ export class GroupService {
         for (let i = 0; i < damageNeeded; i++) neededPositions.push('Damage');
         for (let i = 0; i < supportNeeded; i++) neededPositions.push('Support');
 
-        console.log('[GroupService] 필요한 포지션:', neededPositions);
+        console.log('[checkMatchingComplete] 필요한 포지션:', neededPositions);
 
         // Flex 멤버를 랜덤하게 배정
         const shuffledFlex = [...flexMembers].sort(() => Math.random() - 0.5);
@@ -394,17 +411,22 @@ export class GroupService {
           const member = shuffledFlex[i];
           const assignedPosition = neededPositions[i];
 
-          console.log('[GroupService] Flex 멤버 배정:', {
+          console.log('[checkMatchingComplete] Flex 멤버 배정:', {
+            member_id: member.id,
             sessionId: member.session_id,
             from: 'Flex',
             to: assignedPosition
           });
 
           // 멤버의 포지션 업데이트
-          await this.supabase
+          const { error: updateError } = await this.supabase
             .from('group_members')
             .update({ position: assignedPosition })
             .eq('id', member.id);
+
+          if (updateError) {
+            console.error('[checkMatchingComplete] 멤버 포지션 업데이트 실패:', updateError);
+          }
 
           // 그룹 카운트 업데이트
           await this.updateGroupCounts(groupId, assignedPosition as 'Tank' | 'Damage' | 'Support', 'increment');
@@ -417,31 +439,52 @@ export class GroupService {
           .eq('id', groupId)
           .single();
 
-        if (!updatedGroup) return;
+        if (!updatedGroup) {
+          console.log('[checkMatchingComplete] Updated group not found');
+          return;
+        }
+
+        console.log('[checkMatchingComplete] Updated group state:', {
+          tank_count: updatedGroup.tank_count,
+          damage_count: updatedGroup.damage_count,
+          support_count: updatedGroup.support_count
+        });
 
         const isComplete = 
           updatedGroup.tank_count === 1 &&
           updatedGroup.damage_count === 2 &&
           updatedGroup.support_count === 2;
 
+        console.log('[checkMatchingComplete] 매칭 완료 체크:', isComplete);
+
         if (isComplete) {
-          console.log('[GroupService] 매칭 완료!');
-          await this.supabase
+          console.log('[checkMatchingComplete] ✅ 매칭 완료! 상태 업데이트 중...');
+          const { error: statusError } = await this.supabase
             .from('groups')
             .update({
               status: 'matched',
               matched_at: new Date().toISOString()
             })
             .eq('id', groupId);
+
+          if (statusError) {
+            console.error('[checkMatchingComplete] 매칭 완료 상태 업데이트 실패:', statusError);
+          } else {
+            console.log('[checkMatchingComplete] ✅ 매칭 완료 상태 업데이트 성공!');
+          }
         }
       } else {
         // Flex 멤버가 없으면 기존 로직
+        console.log('[checkMatchingComplete] Flex 멤버 없음, 기본 로직 실행');
         const isComplete = 
           groupData.tank_count === 1 &&
           groupData.damage_count === 2 &&
           groupData.support_count === 2;
 
+        console.log('[checkMatchingComplete] 매칭 완료 체크 (Flex 없음):', isComplete);
+
         if (isComplete) {
+          console.log('[checkMatchingComplete] ✅ 매칭 완료! 상태 업데이트 중...');
           await this.supabase
             .from('groups')
             .update({
@@ -451,6 +494,11 @@ export class GroupService {
             .eq('id', groupId);
         }
       }
+    } else {
+      console.log('[checkMatchingComplete] 조건 미충족:', {
+        has_5_members: groupData.total_members === 5,
+        is_waiting: groupData.status === 'waiting'
+      });
     }
   }
 
