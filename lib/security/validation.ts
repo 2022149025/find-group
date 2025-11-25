@@ -41,6 +41,14 @@ export function isValidUUID(uuid: string): boolean {
   return uuidRegex.test(uuid);
 }
 
+// 세션 ID 검증 (session_timestamp_randomstring 형식)
+export function isValidSessionId(sessionId: string): boolean {
+  if (!sessionId) return false;
+  // session_으로 시작하고, 타임스탬프와 랜덤 문자열로 구성
+  const sessionRegex = /^session_\d+_[a-z0-9]+$/i;
+  return sessionRegex.test(sessionId) && sessionId.length >= 20 && sessionId.length <= 100;
+}
+
 // 배틀태그 검증 (예: PlayerName#1234)
 export function isValidBattleTag(battleTag: string): boolean {
   if (!battleTag) return false;

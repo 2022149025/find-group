@@ -1,6 +1,6 @@
 import { NextRequest } from 'next/server';
 import { GroupService } from '@/lib/services/groupService';
-import { isValidUUID, isValidPosition, checkRateLimit } from '@/lib/security/validation';
+import { isValidSessionId, isValidPosition, checkRateLimit } from '@/lib/security/validation';
 import {
   createSuccessResponse,
   createValidationError,
@@ -34,7 +34,7 @@ export async function POST(request: NextRequest) {
     logApiRequest('POST', endpoint, { sessionId, position });
 
     // 입력 검증
-    if (!sessionId || !isValidUUID(sessionId)) {
+    if (!sessionId || !isValidSessionId(sessionId)) {
       return createValidationError('유효하지 않은 세션 ID입니다.');
     }
 
