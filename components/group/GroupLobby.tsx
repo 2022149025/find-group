@@ -128,10 +128,20 @@ export default function GroupLobby({ groupId, sessionId, isLeader, onKickMember,
         }
 
         setMembers(newMembers);
-        setStatus(newStatus);
-
-        if (newStatus === 'matched' && status === 'waiting') {
-          onMatchingComplete?.();
+        
+        // 상태 변경 감지 및 처리
+        if (newStatus === 'matched' && status !== 'matched') {
+          console.log('[GroupLobby] 🎉 매칭 완료 감지! 화면 전환 시작');
+          setStatus(newStatus);
+          
+          // 매칭 완료 콜백 호출
+          if (onMatchingComplete) {
+            setTimeout(() => {
+              onMatchingComplete();
+            }, 500); // 짧은 딜레이 후 전환
+          }
+        } else {
+          setStatus(newStatus);
         }
       }
     } catch (error) {

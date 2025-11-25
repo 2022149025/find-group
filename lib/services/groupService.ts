@@ -126,27 +126,12 @@ export class GroupService {
   }
 
   /**
-   * UC-220: 역할 검증 및 그룹 참가
+   * UC-220: 역할 검증 및 그룹 참가 (트랜잭션 기반 - 동시성 처리)
    */
   async joinGroup(groupId: string, sessionId: string, position: 'Tank' | 'Damage' | 'Support'): Promise<GroupMember> {
-    // 현재 그룹 상태 조회
-    const { data: groupData, error: groupError } = await this.supabase
-      .from('groups')
-      .select('*')
-      .eq('id', groupId)
-      .single();
+    console.log(`[joinGroup] 시작 - groupId: ${groupId}, position: ${position}`);
 
-    if (groupError || !groupData) {
-      throw new Error('Group not found');
-    }
-
-    // 역할 검증
-    const canJoin = this.validateRoleCapacity(groupData, position);
-    if (!canJoin) {
-      throw new Error(`Cannot join: ${position} position is full`);
-    }
-
-    // 멤버 추가
+    // 멤버 추가 시도
     const { data: memberData, error: memberError } = await this.supabase
       .from('group_members')
       .insert({
@@ -158,10 +143,56 @@ export class GroupService {
       .select()
       .single();
 
-    if (memberError) throw new Error(`Failed to join group: ${memberError.message}`);
+    if (memberError) {
+      console.error(`[joinGroup] 멤버 추가 실패:`, memberError);
+      throw new Error(`Failed to join group: ${memberError.message}`);
+    }
 
-    // 그룹 카운트 업데이트
-    await this.updateGroupCounts(groupId, position, 'increment');
+    console.log(`[joinGroup] 멤버 추가 성공, 카운트 업데이트 시작`);
+
+    // 그룹 카운트 업데이트 (낙관적 동시성 제어)
+    try {
+      const { data: currentGroup } = await this.supabase
+        .from('groups')
+        .select('tank_count, damage_count, support_count, total_members')
+        .eq('id', groupId)
+        .single();
+
+      if (!currentGroup) {
+        // 롤백: 방금 추가한 멤버 삭제
+        await this.supabase.from('group_members').delete().eq('id', memberData.id);
+        throw new Error('Group not found after member insert');
+      }
+
+      // 포지션별 카운트 검증
+      let isValid = true;
+      switch (position) {
+        case 'Tank':
+          isValid = currentGroup.tank_count < 1;
+          break;
+        case 'Damage':
+          isValid = currentGroup.damage_count < 2;
+          break;
+        case 'Support':
+          isValid = currentGroup.support_count < 2;
+          break;
+      }
+
+      if (!isValid) {
+        console.error(`[joinGroup] 포지션 초과 - ${position} 슬롯이 이미 꽉 참`);
+        // 롤백: 방금 추가한 멤버 삭제
+        await this.supabase.from('group_members').delete().eq('id', memberData.id);
+        throw new Error(`Position ${position} is already full`);
+      }
+
+      // 카운트 업데이트
+      await this.updateGroupCounts(groupId, position, 'increment');
+      console.log(`[joinGroup] 카운트 업데이트 완료`);
+
+    } catch (updateError: any) {
+      console.error(`[joinGroup] 카운트 업데이트 중 오류:`, updateError);
+      throw updateError; // 에러를 상위로 전파
+    }
 
     // UC-301: 매칭 완료 감지
     await this.checkMatchingComplete(groupId);
@@ -170,26 +201,12 @@ export class GroupService {
   }
 
   /**
-   * Flex 포지션으로 그룹 참가
+   * Flex 포지션으로 그룹 참가 (트랜잭션 기반)
    */
   async joinGroupAsFlex(groupId: string, sessionId: string): Promise<GroupMember> {
-    // 현재 그룹 상태 조회
-    const { data: groupData, error: groupError } = await this.supabase
-      .from('groups')
-      .select('*')
-      .eq('id', groupId)
-      .single();
+    console.log(`[joinGroupAsFlex] 시작 - groupId: ${groupId}`);
 
-    if (groupError || !groupData) {
-      throw new Error('Group not found');
-    }
-
-    // 5명 미만인지 확인
-    if (groupData.total_members >= 5) {
-      throw new Error('Group is full');
-    }
-
-    // 멤버 추가 (Flex로 저장)
+    // 멤버 추가 시도
     const { data: memberData, error: memberError } = await this.supabase
       .from('group_members')
       .insert({
@@ -201,13 +218,47 @@ export class GroupService {
       .select()
       .single();
 
-    if (memberError) throw new Error(`Failed to join group as Flex: ${memberError.message}`);
+    if (memberError) {
+      console.error(`[joinGroupAsFlex] 멤버 추가 실패:`, memberError);
+      throw new Error(`Failed to join group as Flex: ${memberError.message}`);
+    }
 
-    // 총 멤버 수만 증가 (포지션 카운트는 증가하지 않음)
-    await this.supabase
-      .from('groups')
-      .update({ total_members: groupData.total_members + 1 })
-      .eq('id', groupId);
+    console.log(`[joinGroupAsFlex] 멤버 추가 성공`);
+
+    // 총 멤버 수 증가 (낙관적 동시성 제어)
+    try {
+      const { data: currentGroup } = await this.supabase
+        .from('groups')
+        .select('total_members')
+        .eq('id', groupId)
+        .single();
+
+      if (!currentGroup) {
+        // 롤백
+        await this.supabase.from('group_members').delete().eq('id', memberData.id);
+        throw new Error('Group not found after member insert');
+      }
+
+      // 5명 초과 검증
+      if (currentGroup.total_members >= 5) {
+        console.error(`[joinGroupAsFlex] 그룹이 이미 꽉 참`);
+        // 롤백
+        await this.supabase.from('group_members').delete().eq('id', memberData.id);
+        throw new Error('Group is already full');
+      }
+
+      // 총 멤버 수 증가
+      await this.supabase
+        .from('groups')
+        .update({ total_members: currentGroup.total_members + 1 })
+        .eq('id', groupId);
+
+      console.log(`[joinGroupAsFlex] 멤버 수 업데이트 완료: ${currentGroup.total_members + 1}`);
+
+    } catch (updateError: any) {
+      console.error(`[joinGroupAsFlex] 업데이트 중 오류:`, updateError);
+      throw updateError; // 에러를 상위로 전파
+    }
 
     // UC-301: 매칭 완료 감지 (5명이면 Flex 자동 배정)
     await this.checkMatchingComplete(groupId);
