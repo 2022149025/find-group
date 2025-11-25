@@ -84,7 +84,7 @@ export async function POST(request: NextRequest) {
     const targetCheck = await validateTargetMembership(groupId, targetSessionId);
     if (!targetCheck.valid) {
       logApiError('POST', endpoint, { error: targetCheck.error });
-      return createValidationError(targetCheck.error);
+      return createValidationError(targetCheck.error || '대상 멤버 검증에 실패했습니다.');
     }
 
     // 킥 실행

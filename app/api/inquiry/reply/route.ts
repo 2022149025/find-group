@@ -7,6 +7,10 @@ import {
   checkRateLimit
 } from '@/lib/security/validation';
 import {
+  validateAdminToken,
+  extractTokenFromHeader
+} from '@/lib/security/adminAuth';
+import {
   createSuccessResponse,
   createValidationError,
   createAuthError,
@@ -21,16 +25,28 @@ import {
  * 관리자 답변 작성 (보안 강화)
  * 
  * 🔐 보안 체크:
- * - 관리자 인증 헤더 검증 (선택사항)
- * - Rate Limiting
- * - 입력 검증 및 XSS 방지
+ * - ✅ 관리자 토큰 검증 (필수)
+ * - ✅ Rate Limiting
+ * - ✅ 입력 검증 및 XSS 방지
  */
 export async function POST(request: NextRequest) {
   const endpoint = '/api/inquiry/reply';
   
   try {
-    // 관리자 인증 검증 (선택사항 - 프론트엔드에서 이미 검증됨)
-    // 추가 보안이 필요한 경우 여기에 토큰 검증 로직 추가 가능
+    // 🔒 관리자 토큰 검증 (필수)
+    const authHeader = request.headers.get('authorization');
+    const token = extractTokenFromHeader(authHeader);
+    
+    if (!token) {
+      logApiError('POST', endpoint, { error: 'No token provided' });
+      return createAuthError('관리자 인증이 필요합니다.');
+    }
+    
+    const tokenValidation = validateAdminToken(token);
+    if (!tokenValidation.valid) {
+      logApiError('POST', endpoint, { error: tokenValidation.error });
+      return createAuthError(tokenValidation.error || '인증에 실패했습니다.');
+    }
     
     // Rate Limiting
     const ip = request.headers.get('x-forwarded-for') || 'unknown';

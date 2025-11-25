@@ -56,6 +56,14 @@
 - `POST /api/inquiry/reply` - 관리자용 답변 등록 🔐
   - Body: `{ inquiryId, adminReply }`
 
+### 관리자 인증 🔐
+- `POST /api/auth/admin/login` - 관리자 로그인 (Bearer Token 발급)
+  - Body: `{ password }`
+  - 반환: `{ token, expiresIn, expiresAt }`
+  - Rate Limiting: 5회/분 (무차별 대입 방지)
+- `POST /api/auth/admin/logout` - 관리자 로그아웃 (Token 무효화)
+  - Header: `Authorization: Bearer {token}`
+
 ### 관리자 페이지 🔐
 - `/admin/inquiries` - 문의 관리 페이지 (비밀번호 인증 필요)
   - 기본 비밀번호: `admin1234` (운영 환경에서 반드시 변경!)
@@ -64,9 +72,10 @@
 
 ## 보안 기능 🔐
 
-### 입력 검증
+### 입력 검증 & 권한 체크
 - ✅ XSS 방지 (HTML 태그 sanitization)
 - ✅ SQL Injection 방지 (위험한 SQL 키워드 차단)
+- ✅ IDOR 방어 (서버 측 권한 검증)
 - ✅ 이메일 검증 (RFC 5322 형식)
 - ✅ UUID 검증 (표준 UUID 형식)
 - ✅ 길이 제한 (각 필드별 최소/최대 길이)
@@ -75,7 +84,29 @@
 - 프로필 생성: 5개/분
 - 그룹 생성: 10개/분
 - 문의 생성: 3개/분
-- 문의 답변: 20개/분
+- 관리자 로그인: 5개/분
+- 관리자 답변: 20개/분
+
+### 권한 검증 (서버 측)
+- ✅ validateSessionOwnership - DB에서 세션 검증
+- ✅ validateGroupMembership - 그룹 멤버십 검증
+- ✅ validateGroupLeadership - 리더 권한 검증
+- ✅ validateAdminToken - 관리자 토큰 검증
+
+### Next.js 16 보안
+- ✅ **Server Actions 비활성화** (`'use server'` 미사용)
+- ✅ **API Routes만 사용** (모든 DB 작업은 `/api/*` 경로로)
+- ✅ **DEBUG API 프로덕션 비활성화** (`NODE_ENV === 'production'`)
+- ✅ **console.log 제거** (프로덕션 빌드 시 자동 제거)
+- ✅ **보안 헤더 설정**
+  - `X-Frame-Options: SAMEORIGIN`
+  - `X-Content-Type-Options: nosniff`
+  - `X-XSS-Protection: 1; mode=block`
+  - `Strict-Transport-Security: max-age=63072000`
+  - `Referrer-Policy: strict-origin-when-cross-origin`
+  - `Permissions-Policy: camera=(), microphone=(), geolocation=()`
+- ✅ **관리자 API 토큰 인증** (Bearer Token)
+- ✅ **Brute Force 방지** (로그인 Rate Limiting: 5회/분)
 
 ### 에러 핸들링
 - 프로덕션: 민감한 정보 숨김
@@ -83,7 +114,10 @@
 - 표준화된 에러 응답 형식
 - API 요청/에러 로깅
 
-**자세한 내용**: [SECURITY.md](./SECURITY.md) 참고
+**자세한 내용**: 
+- [SECURITY.md](./SECURITY.md) - 종합 보안 가이드
+- [IDOR_PROTECTION.md](./IDOR_PROTECTION.md) - IDOR 방어 가이드
+- [NEXTJS_SECURITY.md](./NEXTJS_SECURITY.md) - Next.js 보안 가이드
 
 ## 미구현 기능
 - WebSocket 실시간 알림 (현재는 5초 폴링 방식 사용)
@@ -125,9 +159,9 @@
 ## 배포 정보
 - **플랫폼**: Vercel (Next.js)
 - **데이터베이스**: Supabase (연결 완료)
-- **상태**: ✅ **Production Ready** - 보안 강화 완료
+- **상태**: 🔒 **Enterprise-Grade Security** - 완전한 보안 강화
 - **기술 스택**: Next.js 16 + TypeScript + Tailwind CSS + Supabase
-- **최신 커밋**: v2.0.0 - Security hardening for production
+- **최신 커밋**: v3.0.0 - Next.js security hardening + IDOR protection
 - **마지막 업데이트**: 2025-01-25
 
 ### 🚨 중요: Vercel 환경 변수 설정 필요

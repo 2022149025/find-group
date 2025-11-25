@@ -4,8 +4,16 @@ import { MatchingService } from '@/lib/services/matchingService';
 import { createClient } from '@supabase/supabase-js';
 
 export async function GET() {
+  // 🔒 프로덕션 환경에서는 비활성화
+  if (process.env.NODE_ENV === 'production') {
+    return NextResponse.json(
+      { success: false, error: 'Not Found' },
+      { status: 404 }
+    );
+  }
+  
   try {
-    console.log('[DEBUG API] 시작');
+    console.log('[DEBUG API] 시작 (개발 환경 전용)');
     
     // 환경변수 확인
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
