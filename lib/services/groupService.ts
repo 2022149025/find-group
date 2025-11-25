@@ -400,6 +400,8 @@ export class GroupService {
    * UC-301: 매칭 완료 감지 (1T-2D-2H) + Flex 자동 배정
    */
   private async checkMatchingComplete(groupId: string): Promise<void> {
+    console.log('[checkMatchingComplete] ========== 시작 ==========');
+    
     const { data: groupData } = await this.supabase
       .from('groups')
       .select('*')
@@ -407,12 +409,12 @@ export class GroupService {
       .single();
 
     if (!groupData) {
-      console.log('[checkMatchingComplete] Group not found');
+      console.log('[checkMatchingComplete] ❌ Group not found');
       return;
     }
 
-    console.log('[checkMatchingComplete] Group state:', {
-      groupId,
+    console.log('[checkMatchingComplete] 현재 그룹 상태:', {
+      groupId: groupId.substring(0, 8) + '...',
       total_members: groupData.total_members,
       tank_count: groupData.tank_count,
       damage_count: groupData.damage_count,
@@ -420,137 +422,177 @@ export class GroupService {
       status: groupData.status
     });
 
-    // 5명이 모였는지 확인
-    if (groupData.total_members === 5 && groupData.status === 'waiting') {
-      console.log('[checkMatchingComplete] 5명 달성! Flex 자동 배정 시작');
+    // 이미 매칭 완료된 경우 스킵
+    if (groupData.status === 'matched') {
+      console.log('[checkMatchingComplete] ⏭️ 이미 매칭 완료됨, 스킵');
+      return;
+    }
 
-      // 현재 그룹의 모든 멤버 조회
-      const { data: members } = await this.supabase
-        .from('group_members')
-        .select('*')
-        .eq('group_id', groupId);
+    // 5명이 아니면 스킵
+    if (groupData.total_members !== 5) {
+      console.log('[checkMatchingComplete] ⏭️ 5명 미달:', groupData.total_members, '명');
+      return;
+    }
 
-      if (!members) {
-        console.log('[checkMatchingComplete] No members found');
+    console.log('[checkMatchingComplete] ✅ 5명 달성! 포지션 확인 중...');
+
+    // 현재 그룹의 모든 멤버 조회
+    const { data: members } = await this.supabase
+      .from('group_members')
+      .select('*')
+      .eq('group_id', groupId);
+
+    if (!members || members.length !== 5) {
+      console.log('[checkMatchingComplete] ❌ 멤버 조회 실패 또는 5명 아님:', members?.length);
+      return;
+    }
+
+    console.log('[checkMatchingComplete] 멤버 포지션:', members.map(m => m.position));
+
+    // Flex 멤버 찾기
+    const flexMembers = members.filter(m => m.position === 'Flex');
+    
+    if (flexMembers.length > 0) {
+      console.log('[checkMatchingComplete] 🔄 Flex 멤버 발견:', flexMembers.length, '명 → 자동 배정 시작');
+
+      // 필요한 포지션 계산 (1T-2D-2S 기준)
+      const tankNeeded = 1 - groupData.tank_count;
+      const damageNeeded = 2 - groupData.damage_count;
+      const supportNeeded = 2 - groupData.support_count;
+
+      console.log('[checkMatchingComplete] 필요한 포지션:', {
+        Tank: tankNeeded,
+        Damage: damageNeeded,
+        Support: supportNeeded,
+        total: tankNeeded + damageNeeded + supportNeeded
+      });
+
+      // 필요한 포지션이 Flex 멤버 수와 일치하는지 확인
+      const totalNeeded = tankNeeded + damageNeeded + supportNeeded;
+      if (totalNeeded !== flexMembers.length) {
+        console.error('[checkMatchingComplete] ❌ 포지션 수 불일치!', {
+          flexMembers: flexMembers.length,
+          needed: totalNeeded
+        });
         return;
       }
 
-      console.log('[checkMatchingComplete] Members:', members.map(m => ({ id: m.id, position: m.position })));
+      // 필요한 포지션 배열 생성
+      const neededPositions: ('Tank' | 'Damage' | 'Support')[] = [];
+      for (let i = 0; i < tankNeeded; i++) neededPositions.push('Tank');
+      for (let i = 0; i < damageNeeded; i++) neededPositions.push('Damage');
+      for (let i = 0; i < supportNeeded; i++) neededPositions.push('Support');
 
-      // Flex 멤버 찾기
-      const flexMembers = members.filter(m => m.position === 'Flex');
+      console.log('[checkMatchingComplete] 배정할 포지션 순서:', neededPositions);
+
+      // Flex 멤버를 랜덤하게 배정
+      const shuffledFlex = [...flexMembers].sort(() => Math.random() - 0.5);
       
-      if (flexMembers.length > 0) {
-        console.log('[checkMatchingComplete] Flex 멤버 발견:', flexMembers.length, '명');
-
-        // 현재 필요한 포지션 계산 (1T-2D-2S 기준)
-        const neededPositions: ('Tank' | 'Damage' | 'Support')[] = [];
-        const tankNeeded = 1 - groupData.tank_count;
-        const damageNeeded = 2 - groupData.damage_count;
-        const supportNeeded = 2 - groupData.support_count;
-
-        for (let i = 0; i < tankNeeded; i++) neededPositions.push('Tank');
-        for (let i = 0; i < damageNeeded; i++) neededPositions.push('Damage');
-        for (let i = 0; i < supportNeeded; i++) neededPositions.push('Support');
-
-        console.log('[checkMatchingComplete] 필요한 포지션:', neededPositions);
-
-        // Flex 멤버를 랜덤하게 배정
-        const shuffledFlex = [...flexMembers].sort(() => Math.random() - 0.5);
-        
-        for (let i = 0; i < shuffledFlex.length && i < neededPositions.length; i++) {
-          const member = shuffledFlex[i];
-          const assignedPosition = neededPositions[i];
-
-          console.log('[checkMatchingComplete] Flex 멤버 배정:', {
-            member_id: member.id,
-            sessionId: member.session_id,
-            from: 'Flex',
-            to: assignedPosition
-          });
-
-          // 멤버의 포지션 업데이트
-          const { error: updateError } = await this.supabase
-            .from('group_members')
-            .update({ position: assignedPosition })
-            .eq('id', member.id);
-
-          if (updateError) {
-            console.error('[checkMatchingComplete] 멤버 포지션 업데이트 실패:', updateError);
-          }
-
-          // 그룹 카운트 업데이트
-          await this.updateGroupCounts(groupId, assignedPosition as 'Tank' | 'Damage' | 'Support', 'increment');
-        }
-
-        // 재조회하여 매칭 완료 확인
-        const { data: updatedGroup } = await this.supabase
-          .from('groups')
-          .select('*')
-          .eq('id', groupId)
-          .single();
-
-        if (!updatedGroup) {
-          console.log('[checkMatchingComplete] Updated group not found');
+      // 모든 Flex 멤버를 한 번에 배정
+      const assignmentPromises = shuffledFlex.map(async (member, index) => {
+        if (index >= neededPositions.length) {
+          console.error('[checkMatchingComplete] ⚠️ 인덱스 초과:', index);
           return;
         }
 
-        console.log('[checkMatchingComplete] Updated group state:', {
-          tank_count: updatedGroup.tank_count,
-          damage_count: updatedGroup.damage_count,
-          support_count: updatedGroup.support_count
+        const assignedPosition = neededPositions[index];
+
+        console.log('[checkMatchingComplete] 배정:', {
+          member_id: member.id.substring(0, 8) + '...',
+          Flex: '→',
+          position: assignedPosition
         });
 
-        const isComplete = 
-          updatedGroup.tank_count === 1 &&
-          updatedGroup.damage_count === 2 &&
-          updatedGroup.support_count === 2;
+        // 멤버 포지션 업데이트
+        await this.supabase
+          .from('group_members')
+          .update({ position: assignedPosition })
+          .eq('id', member.id);
 
-        console.log('[checkMatchingComplete] 매칭 완료 체크:', isComplete);
+        return assignedPosition;
+      });
 
-        if (isComplete) {
-          console.log('[checkMatchingComplete] ✅ 매칭 완료! 상태 업데이트 중...');
-          const { error: statusError } = await this.supabase
-            .from('groups')
-            .update({
-              status: 'matched',
-              matched_at: new Date().toISOString()
-            })
-            .eq('id', groupId);
+      const assignedPositions = await Promise.all(assignmentPromises);
+      
+      console.log('[checkMatchingComplete] 모든 Flex 멤버 배정 완료:', assignedPositions);
 
-          if (statusError) {
-            console.error('[checkMatchingComplete] 매칭 완료 상태 업데이트 실패:', statusError);
-          } else {
-            console.log('[checkMatchingComplete] ✅ 매칭 완료 상태 업데이트 성공!');
-          }
+      // 포지션 카운트를 한 번에 계산
+      const finalTankCount = groupData.tank_count + assignedPositions.filter(p => p === 'Tank').length;
+      const finalDamageCount = groupData.damage_count + assignedPositions.filter(p => p === 'Damage').length;
+      const finalSupportCount = groupData.support_count + assignedPositions.filter(p => p === 'Support').length;
+
+      console.log('[checkMatchingComplete] 최종 포지션 카운트:', {
+        Tank: finalTankCount,
+        Damage: finalDamageCount,
+        Support: finalSupportCount
+      });
+
+      // 그룹 포지션 카운트 업데이트
+      await this.supabase
+        .from('groups')
+        .update({
+          tank_count: finalTankCount,
+          damage_count: finalDamageCount,
+          support_count: finalSupportCount
+        })
+        .eq('id', groupId);
+
+      console.log('[checkMatchingComplete] 그룹 카운트 업데이트 완료');
+
+      // 매칭 완료 확인 (1T-2D-2S)
+      const isComplete = finalTankCount === 1 && finalDamageCount === 2 && finalSupportCount === 2;
+
+      console.log('[checkMatchingComplete] 매칭 완료 체크:', {
+        isComplete,
+        composition: `${finalTankCount}T-${finalDamageCount}D-${finalSupportCount}S`
+      });
+
+      if (isComplete) {
+        console.log('[checkMatchingComplete] 🎉 매칭 완료! 상태 업데이트 중...');
+        const { error: statusError } = await this.supabase
+          .from('groups')
+          .update({
+            status: 'matched',
+            matched_at: new Date().toISOString()
+          })
+          .eq('id', groupId);
+
+        if (statusError) {
+          console.error('[checkMatchingComplete] ❌ 상태 업데이트 실패:', statusError);
+        } else {
+          console.log('[checkMatchingComplete] ✅ 매칭 완료 상태 업데이트 성공!');
         }
       } else {
-        // Flex 멤버가 없으면 기존 로직
-        console.log('[checkMatchingComplete] Flex 멤버 없음, 기본 로직 실행');
-        const isComplete = 
-          groupData.tank_count === 1 &&
-          groupData.damage_count === 2 &&
-          groupData.support_count === 2;
-
-        console.log('[checkMatchingComplete] 매칭 완료 체크 (Flex 없음):', isComplete);
-
-        if (isComplete) {
-          console.log('[checkMatchingComplete] ✅ 매칭 완료! 상태 업데이트 중...');
-          await this.supabase
-            .from('groups')
-            .update({
-              status: 'matched',
-              matched_at: new Date().toISOString()
-            })
-            .eq('id', groupId);
-        }
+        console.error('[checkMatchingComplete] ❌ 포지션 구성이 1T-2D-2S가 아님!');
       }
     } else {
-      console.log('[checkMatchingComplete] 조건 미충족:', {
-        has_5_members: groupData.total_members === 5,
-        is_waiting: groupData.status === 'waiting'
+      // Flex 멤버 없음 - 일반 매칭 체크
+      console.log('[checkMatchingComplete] Flex 멤버 없음, 일반 매칭 체크');
+      
+      const isComplete = 
+        groupData.tank_count === 1 &&
+        groupData.damage_count === 2 &&
+        groupData.support_count === 2;
+
+      console.log('[checkMatchingComplete] 매칭 완료 체크 (Flex 없음):', {
+        isComplete,
+        composition: `${groupData.tank_count}T-${groupData.damage_count}D-${groupData.support_count}S`
       });
+
+      if (isComplete) {
+        console.log('[checkMatchingComplete] 🎉 매칭 완료! 상태 업데이트 중...');
+        await this.supabase
+          .from('groups')
+          .update({
+            status: 'matched',
+            matched_at: new Date().toISOString()
+          })
+          .eq('id', groupId);
+        console.log('[checkMatchingComplete] ✅ 매칭 완료!');
+      }
     }
+
+    console.log('[checkMatchingComplete] ========== 종료 ==========');
   }
 
   /**
