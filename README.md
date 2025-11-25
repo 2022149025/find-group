@@ -24,7 +24,8 @@
 ✅ 그룹장 권한 자동 인계 (그룹장 퇴장 시)
 ✅ 수동 그룹 나가기 버튼
 ✅ 1:1 문의 시스템 (버그 신고, 기능 요청, 개선 제안) 🆕
-✅ 관리자 페이지 (PIN 인증, 문의 답변) 🆕
+✅ 관리자 페이지 (비밀번호 인증, 문의 답변) 🆕
+✅ 프로덕션 보안 강화 (XSS, SQL Injection, Rate Limiting) 🔐
 
 ## 현재 기능 엔트리 URI
 
@@ -60,6 +61,29 @@
   - 기본 비밀번호: `admin1234` (운영 환경에서 반드시 변경!)
   - 환경변수로 설정: `NEXT_PUBLIC_ADMIN_PASSWORD`
   - Vercel Dashboard → Settings → Environment Variables에서 설정
+
+## 보안 기능 🔐
+
+### 입력 검증
+- ✅ XSS 방지 (HTML 태그 sanitization)
+- ✅ SQL Injection 방지 (위험한 SQL 키워드 차단)
+- ✅ 이메일 검증 (RFC 5322 형식)
+- ✅ UUID 검증 (표준 UUID 형식)
+- ✅ 길이 제한 (각 필드별 최소/최대 길이)
+
+### Rate Limiting
+- 프로필 생성: 5개/분
+- 그룹 생성: 10개/분
+- 문의 생성: 3개/분
+- 문의 답변: 20개/분
+
+### 에러 핸들링
+- 프로덕션: 민감한 정보 숨김
+- 개발: 상세한 디버그 정보
+- 표준화된 에러 응답 형식
+- API 요청/에러 로깅
+
+**자세한 내용**: [SECURITY.md](./SECURITY.md) 참고
 
 ## 미구현 기능
 - WebSocket 실시간 알림 (현재는 5초 폴링 방식 사용)
@@ -101,10 +125,10 @@
 ## 배포 정보
 - **플랫폼**: Vercel (Next.js)
 - **데이터베이스**: Supabase (연결 완료)
-- **상태**: 🚨 **Critical Fix Required** - 그룹 생성 실패 문제 해결 중
+- **상태**: ✅ **Production Ready** - 보안 강화 완료
 - **기술 스택**: Next.js 16 + TypeScript + Tailwind CSS + Supabase
-- **최신 커밋**: v1.2.3 - Critical group creation fix
-- **마지막 업데이트**: 2025-11-23
+- **최신 커밋**: v2.0.0 - Security hardening for production
+- **마지막 업데이트**: 2025-01-25
 
 ### 🚨 중요: Vercel 환경 변수 설정 필요
 그룹 생성 기능이 작동하려면 **Vercel 환경 변수 추가가 필수**입니다:

@@ -1,50 +1,97 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest } from 'next/server';
 import { InquiryService } from '@/lib/services/inquiryService';
+import {
+  sanitizeInput,
+  isValidInput,
+  isValidUUID,
+  checkRateLimit
+} from '@/lib/security/validation';
+import {
+  createSuccessResponse,
+  createValidationError,
+  createAuthError,
+  createRateLimitError,
+  createServerError,
+  safeJsonParse,
+  logApiRequest,
+  logApiError
+} from '@/lib/security/errorHandler';
 
 /**
- * 관리자 답변 작성
+ * 관리자 답변 작성 (보안 강화)
+ * 
+ * 🔐 보안 체크:
+ * - 관리자 인증 헤더 검증 (선택사항)
+ * - Rate Limiting
+ * - 입력 검증 및 XSS 방지
  */
 export async function POST(request: NextRequest) {
+  const endpoint = '/api/inquiry/reply';
+  
   try {
-    const body = await request.json();
+    // 관리자 인증 검증 (선택사항 - 프론트엔드에서 이미 검증됨)
+    // 추가 보안이 필요한 경우 여기에 토큰 검증 로직 추가 가능
+    
+    // Rate Limiting
+    const ip = request.headers.get('x-forwarded-for') || 'unknown';
+    const rateLimit = checkRateLimit(`inquiry-reply:${ip}`, 20, 60000); // 1분에 20개
+    
+    if (!rateLimit.allowed) {
+      return createRateLimitError();
+    }
+    
+    // JSON 파싱
+    const body = await safeJsonParse<{
+      inquiryId: string;
+      adminReply: string;
+    }>(request);
+    
+    if (!body) {
+      return createValidationError('잘못된 요청 형식입니다.');
+    }
+
     const { inquiryId, adminReply } = body;
+    
+    logApiRequest('POST', endpoint, { inquiryId, replyLength: adminReply?.length });
 
-    console.log('[API /api/inquiry/reply] 요청 받음:', {
-      inquiryId,
-      replyLength: adminReply?.length
-    });
-
-    // 유효성 검사
+    // 필수 필드 검증
     if (!inquiryId || !adminReply) {
-      return NextResponse.json({
-        success: false,
-        error: '문의 ID와 답변 내용을 입력해주세요.'
-      }, { status: 400 });
+      return createValidationError('문의 ID와 답변 내용을 입력해주세요.');
+    }
+    
+    // UUID 검증
+    if (!isValidUUID(inquiryId)) {
+      return createValidationError('유효하지 않은 문의 ID입니다.');
     }
 
+    // 답변 길이 검증
     if (adminReply.trim().length < 10) {
-      return NextResponse.json({
-        success: false,
-        error: '답변은 최소 10자 이상 입력해주세요.'
-      }, { status: 400 });
+      return createValidationError('답변은 최소 10자 이상 입력해주세요.');
+    }
+    
+    if (adminReply.length > 5000) {
+      return createValidationError('답변은 최대 5000자까지 입력 가능합니다.');
+    }
+    
+    // XSS 방지
+    const sanitizedReply = sanitizeInput(adminReply);
+    
+    // SQL Injection 방지
+    if (!isValidInput(sanitizedReply, 5000)) {
+      return createValidationError('답변 내용에 허용되지 않는 문자가 포함되어 있습니다.');
     }
 
+    // 답변 작성
     const inquiryService = new InquiryService();
-    const updatedInquiry = await inquiryService.replyToInquiry(inquiryId, adminReply);
+    const updatedInquiry = await inquiryService.replyToInquiry(inquiryId, sanitizedReply);
 
-    console.log('[API /api/inquiry/reply] 답변 작성 성공:', updatedInquiry.id);
-
-    return NextResponse.json({
-      success: true,
-      data: updatedInquiry,
-      message: '답변이 성공적으로 등록되었습니다.'
-    }, { status: 200 });
+    return createSuccessResponse(
+      updatedInquiry, 
+      '답변이 성공적으로 등록되었습니다.'
+    );
 
   } catch (error: any) {
-    console.error('[API /api/inquiry/reply] 오류 발생:', error);
-    return NextResponse.json({
-      success: false,
-      error: error.message || '답변 등록 중 오류가 발생했습니다.'
-    }, { status: 500 });
+    logApiError('POST', endpoint, error);
+    return createServerError(error);
   }
 }

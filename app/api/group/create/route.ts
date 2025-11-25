@@ -1,29 +1,55 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest } from 'next/server';
 import { GroupService } from '@/lib/services/groupService';
+import { isValidUUID, isValidPosition, checkRateLimit } from '@/lib/security/validation';
+import {
+  createSuccessResponse,
+  createValidationError,
+  createRateLimitError,
+  createServerError,
+  safeJsonParse,
+  logApiRequest,
+  logApiError
+} from '@/lib/security/errorHandler';
 
 export async function POST(request: NextRequest) {
+  const endpoint = '/api/group/create';
+  
   try {
-    const { sessionId, position } = await request.json();
+    // Rate Limiting
+    const ip = request.headers.get('x-forwarded-for') || 'unknown';
+    const rateLimit = checkRateLimit(`group-create:${ip}`, 10, 60000); // 1분에 10개
+    
+    if (!rateLimit.allowed) {
+      return createRateLimitError();
+    }
+    
+    // JSON 파싱
+    const body = await safeJsonParse<{ sessionId: string; position: string }>(request);
+    if (!body) {
+      return createValidationError('잘못된 요청 형식입니다.');
+    }
+    
+    const { sessionId, position } = body;
+    
+    logApiRequest('POST', endpoint, { sessionId, position });
 
-    if (!sessionId || !position) {
-      return NextResponse.json({
-        success: false,
-        error: 'sessionId and position are required'
-      }, { status: 400 });
+    // 입력 검증
+    if (!sessionId || !isValidUUID(sessionId)) {
+      return createValidationError('유효하지 않은 세션 ID입니다.');
     }
 
+    if (!position || !isValidPosition(position)) {
+      return createValidationError('올바른 포지션을 선택해주세요.');
+    }
+
+    // 그룹 생성
     const groupService = new GroupService();
     const group = await groupService.createGroup(sessionId, position);
 
-    return NextResponse.json({
-      success: true,
-      data: group
-    }, { status: 201 });
+    return createSuccessResponse(group, '그룹이 성공적으로 생성되었습니다.');
 
   } catch (error: any) {
-    return NextResponse.json({
-      success: false,
-      error: error.message
-    }, { status: 400 });
+    logApiError('POST', endpoint, error);
+    return createServerError(error);
   }
 }

@@ -1,17 +1,45 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest } from 'next/server';
 import { MatchingService } from '@/lib/services/matchingService';
+import { isValidUUID, isValidPosition, checkRateLimit } from '@/lib/security/validation';
+import {
+  createSuccessResponse,
+  createValidationError,
+  createNotFoundError,
+  createRateLimitError,
+  createServerError,
+  safeJsonParse,
+  logApiRequest,
+  logApiError
+} from '@/lib/security/errorHandler';
 
 export async function POST(request: NextRequest) {
+  const endpoint = '/api/group/join';
+  
   try {
-    const { sessionId, position } = await request.json();
+    // Rate Limiting
+    const ip = request.headers.get('x-forwarded-for') || 'unknown';
+    const rateLimit = checkRateLimit(`group-join:${ip}`, 20, 60000);
+    
+    if (!rateLimit.allowed) {
+      return createRateLimitError();
+    }
+    
+    // JSON 파싱
+    const body = await safeJsonParse<{ sessionId: string; position: string }>(request);
+    if (!body) {
+      return createValidationError('잘못된 요청 형식입니다.');
+    }
+    
+    const { sessionId, position } = body;
+    logApiRequest('POST', endpoint, { sessionId, position });
 
-    console.log(`[API /api/group/join] 요청 받음 - sessionId: ${sessionId}, position: ${position}`);
+    // 입력 검증
+    if (!sessionId || !isValidUUID(sessionId)) {
+      return createValidationError('유효하지 않은 세션 ID입니다.');
+    }
 
-    if (!sessionId || !position) {
-      return NextResponse.json({
-        success: false,
-        error: 'sessionId and position are required'
-      }, { status: 400 });
+    if (!position || !isValidPosition(position)) {
+      return createValidationError('올바른 포지션을 선택해주세요.');
     }
 
     const matchingService = new MatchingService();
@@ -23,31 +51,16 @@ export async function POST(request: NextRequest) {
     const result = await matchingService.autoMatchGroup(sessionId, position);
 
     if (!result.joined) {
-      console.log(`[API /api/group/join] 매칭 실패 - 대기 중인 그룹: ${stats.totalWaitingGroups}개`);
-      
-      return NextResponse.json({
-        success: false,
-        error: 'No suitable group found. Please try again or create a new group.',
-        debug: {
-          waitingGroups: stats.totalWaitingGroups,
-          position: position,
-          stats: stats
-        }
-      }, { status: 404 });
+      logApiRequest('POST', endpoint, { matched: false, waitingGroups: stats.totalWaitingGroups });
+      return createNotFoundError(
+        `${position} 포지션의 빈자리가 있는 그룹을 찾지 못했습니다. 잠시 후 다시 시도하거나 '그룹장으로 시작'을 선택해주세요.`
+      );
     }
 
-    console.log(`[API /api/group/join] 매칭 성공 - groupId: ${result.groupId}`);
-
-    return NextResponse.json({
-      success: true,
-      data: result
-    }, { status: 200 });
+    return createSuccessResponse(result, '그룹에 성공적으로 참가했습니다.');
 
   } catch (error: any) {
-    console.error(`[API /api/group/join] 오류 발생:`, error);
-    return NextResponse.json({
-      success: false,
-      error: error.message
-    }, { status: 400 });
+    logApiError('POST', endpoint, error);
+    return createServerError(error);
   }
 }
