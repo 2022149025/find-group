@@ -185,6 +185,9 @@ export default function GroupLobby({ groupId, sessionId, isLeader, onKickMember,
     { position: 'Support', member: members.filter(m => m.position === 'Support')[1] || null }
   ];
 
+  // Flex 멤버 분리
+  const flexMembers = members.filter(m => m.position === 'Flex');
+
   if (loading) {
     return (
       <div className="flex justify-center items-center h-64">
@@ -300,6 +303,84 @@ export default function GroupLobby({ groupId, sessionId, isLeader, onKickMember,
           </div>
         ))}
       </div>
+
+      {/* Flex 멤버 섹션 */}
+      {flexMembers.length > 0 && (
+        <div className="mt-6">
+          <h3 className="text-lg font-bold text-gray-700 mb-3 flex items-center gap-2">
+            <span className="px-3 py-1 bg-purple-500 text-white rounded-full text-sm">Flex</span>
+            유연 포지션 ({flexMembers.length}명)
+            <span className="text-sm font-normal text-gray-500">- 5명 달성 시 자동 배정됩니다</span>
+          </h3>
+          <div className="space-y-3">
+            {flexMembers.map((member, index) => (
+              <div
+                key={member.id}
+                className="p-4 rounded-lg border-2 bg-purple-50 border-purple-300"
+              >
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-4">
+                    {/* Flex 아이콘 */}
+                    <div className="w-12 h-12 rounded-full flex items-center justify-center font-bold text-white bg-gradient-to-r from-blue-500 via-red-500 to-green-500">
+                      F
+                    </div>
+
+                    {/* 멤버 정보 */}
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2">
+                        <p className="font-semibold text-gray-800">
+                          {member.profile?.nickname || '알 수 없음'}
+                        </p>
+                        {member.isLeader && <span className="text-yellow-500">👑</span>}
+                        <span className="px-2 py-0.5 bg-purple-100 text-purple-700 text-xs font-semibold rounded">
+                          Flex (모든 포지션 가능)
+                        </span>
+                      </div>
+                      <p className="text-sm text-gray-600">{member.profile?.battle_tag}</p>
+                      {member.profile?.introduction && (
+                        <p className="text-xs text-gray-500 mt-1">{member.profile.introduction}</p>
+                      )}
+                      {/* 포지션별 티어 표시 */}
+                      {member.profile?.current_tier && (() => {
+                        const tier = member.profile.current_tier as any;
+                        return (
+                          <div className="flex gap-2 mt-2 flex-wrap">
+                            {tier.Tank && (
+                              <span className="px-2 py-0.5 bg-blue-50 text-blue-600 text-xs rounded border border-blue-200">
+                                Tank: {tier.Tank}
+                              </span>
+                            )}
+                            {tier.Damage && (
+                              <span className="px-2 py-0.5 bg-red-50 text-red-600 text-xs rounded border border-red-200">
+                                Damage: {tier.Damage}
+                              </span>
+                            )}
+                            {tier.Support && (
+                              <span className="px-2 py-0.5 bg-green-50 text-green-600 text-xs rounded border border-green-200">
+                                Support: {tier.Support}
+                              </span>
+                            )}
+                          </div>
+                        );
+                      })()}
+                    </div>
+                  </div>
+
+                  {/* 강제 퇴장 버튼 (그룹장 전용) */}
+                  {isLeader && !member.isLeader && (
+                    <button
+                      onClick={() => handleKick(member.sessionId)}
+                      className="px-3 py-1 bg-red-500 text-white text-sm rounded hover:bg-red-600 transition"
+                    >
+                      퇴장
+                    </button>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* 매칭 완료 메시지 */}
       {status === 'matched' && (
