@@ -1,51 +1,94 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest } from 'next/server';
 import { GroupService } from '@/lib/services/groupService';
+import { 
+  isValidUUID, 
+  isValidSessionId, 
+  checkRateLimit 
+} from '@/lib/security/validation';
+import {
+  validateGroupMembership
+} from '@/lib/security/authorization';
+import {
+  createSuccessResponse,
+  createValidationError,
+  createForbiddenError,
+  createRateLimitError,
+  createServerError,
+  safeJsonParse,
+  logApiRequest,
+  logApiError
+} from '@/lib/security/errorHandler';
 
+/**
+ * 🔒 그룹 나가기 API (보안 강화)
+ * 
+ * IDOR 방어:
+ * 1. 멤버십 검증 (DB에서 실제 멤버인지 확인)
+ * 2. 자신만 자신을 나가게 할 수 있음
+ */
 export async function POST(request: NextRequest) {
+  const endpoint = '/api/group/leave';
+  
   try {
-    const { groupId, sessionId } = await request.json();
+    // Rate Limiting
+    const ip = request.headers.get('x-forwarded-for') || 'unknown';
+    const rateLimit = checkRateLimit(`group-leave:${ip}`, 20, 60000);
+    
+    if (!rateLimit.allowed) {
+      return createRateLimitError();
+    }
+    
+    // JSON 파싱
+    const body = await safeJsonParse<{
+      groupId: string;
+      sessionId: string;
+    }>(request);
+    
+    if (!body) {
+      return createValidationError('잘못된 요청 형식입니다.');
+    }
 
-    if (!groupId || !sessionId) {
-      return NextResponse.json({
-        success: false,
-        error: 'groupId and sessionId are required'
-      }, { status: 400 });
+    const { groupId, sessionId } = body;
+    
+    logApiRequest('POST', endpoint, { groupId, sessionId });
+
+    // 입력 검증
+    if (!groupId || !isValidUUID(groupId)) {
+      return createValidationError('유효하지 않은 그룹 ID입니다.');
+    }
+
+    if (!sessionId || !isValidSessionId(sessionId)) {
+      return createValidationError('유효하지 않은 세션 ID입니다.');
+    }
+
+    // 🔒 권한 검증: 멤버십 확인
+    const membership = await validateGroupMembership(groupId, sessionId);
+    if (!membership.valid) {
+      logApiError('POST', endpoint, { error: membership.error });
+      return createForbiddenError(membership.error);
     }
 
     const groupService = new GroupService();
     
-    // 멤버 조회
-    const { members } = await groupService.getGroupWithMembers(groupId);
-    const member = members.find(m => m.sessionId === sessionId);
-
-    if (!member) {
-      return NextResponse.json({
-        success: false,
-        error: 'Member not found in group'
-      }, { status: 404 });
-    }
-
-    // 그룹장인 경우 그룹장 인계 (멤버가 있으면) 또는 그룹 삭제 (멤버가 없으면)
-    if (member.isLeader) {
+    // 그룹장인 경우 그룹장 인계 또는 그룹 삭제
+    if (membership.isLeader) {
       await groupService.transferLeadership(groupId, sessionId);
-      return NextResponse.json({
-        success: true,
-        message: 'Leadership transferred or group deleted'
-      });
+      return createSuccessResponse(
+        { left: true, transferredLeadership: true },
+        '그룹장 권한이 인계되었습니다.'
+      );
     }
 
     // 일반 멤버인 경우 탈퇴 처리
     await groupService.removeMember(groupId, sessionId);
 
-    return NextResponse.json({
-      success: true,
-      message: 'Member left successfully'
-    });
+    return createSuccessResponse(
+      { left: true },
+      '그룹에서 성공적으로 나갔습니다.'
+    );
 
   } catch (error: any) {
-    return NextResponse.json({
-      success: false,
-      error: error.message
-    }, { status: 400 });
+    logApiError('POST', endpoint, error);
+    return createServerError(error);
   }
 }

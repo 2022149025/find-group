@@ -94,7 +94,40 @@ NEXT_PUBLIC_ADMIN_PASSWORD=YourVeryStrongPassword2024!
 
 ---
 
-### 📋 5. 보안 테스트 체크리스트
+### 🛡️ 5. IDOR 방어 및 권한 검증
+
+### **구현된 보안 기능**
+```typescript
+✅ 서버 측 세션 검증 (DB에서 확인)
+✅ 그룹 멤버십 검증 (실제 멤버인지 DB 확인)
+✅ 리더 권한 검증 (관리자 작업 시)
+✅ 프로필 소유권 검증
+✅ 타겟 멤버십 검증 (킥 등)
+```
+
+### **방어 메커니즘**
+```typescript
+// ❌ 취약한 코드 (클라이언트 값 신뢰)
+if (sessionId === leaderSessionId) {
+  // 킥 허용 - 위험! sessionId는 변조 가능
+}
+
+// ✅ 안전한 코드 (서버 측 DB 검증)
+const leaderCheck = await validateGroupLeadership(groupId, leaderSessionId);
+if (!leaderCheck.valid) {
+  return createForbiddenError('권한이 없습니다.');
+}
+```
+
+### **민감 정보 보호**
+```typescript
+✅ sessionId는 API 응답에 포함하지 않음
+✅ 배틀태그 부분 마스킹 (프로덕션)
+   - TestUser#1234 → Test****#1234
+✅ 프로필 ID, 만료 시간 등 내부 정보 숨김
+```
+
+## 📋 6. 보안 테스트 체크리스트
 
 #### **배포 전 필수 테스트**
 ```bash
@@ -113,6 +146,19 @@ NEXT_PUBLIC_ADMIN_PASSWORD=YourVeryStrongPassword2024!
 ✅ 비밀번호 없이 접근 차단 확인
 ✅ 잘못된 비밀번호 입력 시 에러 메시지 확인
 ✅ 로그아웃 후 페이지 접근 차단 확인
+
+# 4. IDOR 취약점 테스트 (중요!)
+✅ 다른 사용자의 sessionId로 킥 시도 → 403 Forbidden
+✅ 다른 그룹의 groupId로 멤버 조작 시도 → 403 Forbidden
+✅ 리더가 아닌데 킥 시도 → 403 Forbidden
+✅ 그룹 멤버가 아닌데 나가기 시도 → 403 Forbidden
+✅ API 응답에 sessionId 포함 여부 확인 → 없어야 함
+✅ 배틀태그 마스킹 확인 (프로덕션) → Test****#1234
+
+# 5. Burp Suite 테스트
+✅ 요청 가로채기 후 sessionId 변조 시도
+✅ groupId 변조하여 다른 그룹 접근 시도
+✅ 권한 없는 작업 시도 (킥, 설정 변경 등)
 ```
 
 ---
