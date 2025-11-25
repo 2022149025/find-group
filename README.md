@@ -15,28 +15,40 @@
 ✅ 임시 프로필 생성 (닉네임, 배틀태그, 포지션, 티어, 영웅)
 ✅ 그룹장으로 시작 (새 그룹 생성)
 ✅ 그룹원으로 시작 (자동 매칭)
+✅ Flex 포지션 지원 (모든 역할 가능, 자동 배정)
 ✅ 역할 검증 및 카운트 관리
 ✅ 실시간 그룹 대기실 UI
-✅ 매칭 완료 화면
+✅ 매칭 완료 화면 (친구추가 안내)
 ✅ 멤버 강제 퇴장 기능
-✅ 자동 그룹 탈퇴 (브라우저 닫기/페이지 새로고침 시) 🆕
-✅ 그룹장 권한 자동 인계 (그룹장 퇴장 시) 🆕
-✅ 수동 그룹 나가기 버튼 🆕
+✅ 자동 그룹 탈퇴 (브라우저 닫기/페이지 새로고침 시)
+✅ 그룹장 권한 자동 인계 (그룹장 퇴장 시)
+✅ 수동 그룹 나가기 버튼
+✅ 1:1 문의 시스템 (버그 신고, 기능 요청, 개선 제안) 🆕
 
 ## 현재 기능 엔트리 URI
+
+### 프로필 & 매칭
 - `POST /api/profile/create` - 임시 프로필 생성
   - Body: `{ nickname, battleTag, introduction?, mainPosition, currentTier, mainHeroes }`
 - `POST /api/group/create` - 그룹 생성 (그룹장)
-  - Body: `{ sessionId, position }`
+  - Body: `{ sessionId, position }` (position: 'Tank' | 'Damage' | 'Support' | 'Flex')
 - `POST /api/group/join` - 그룹 참가 (자동 매칭)
-  - Body: `{ sessionId, position }`
+  - Body: `{ sessionId, position }` (position: 'Tank' | 'Damage' | 'Support' | 'Flex')
 - `GET /api/group/[groupId]` - 그룹 정보 조회
-- `GET /api/group/debug` - 디버그 정보 (대기 그룹, 통계) 🆕
+- `POST /api/group/check-complete` - 매칭 완료 강제 체크
+  - Body: `{ groupId }`
+- `GET /api/group/debug` - 디버그 정보 (대기 그룹, 통계)
 - `POST /api/group/kick` - 멤버 강제 퇴장
   - Body: `{ groupId, leaderSessionId, targetSessionId }`
-- `POST /api/group/leave` - 그룹 탈퇴 🆕
+- `POST /api/group/leave` - 그룹 탈퇴
   - Body: `{ groupId, sessionId }`
   - Note: 그룹장이 나가면 다음 멤버에게 인계 (멤버 없으면 그룹 삭제)
+
+### 1:1 문의 🆕
+- `POST /api/inquiry/create` - 문의 접수
+  - Body: `{ name, email, category, title, content }`
+  - category: 'bug' | 'feature' | 'suggestion' | 'other'
+- `GET /api/inquiry/list?email={email}` - 사용자별 문의 목록 조회
 
 ## 미구현 기능
 - WebSocket 실시간 알림 (현재는 5초 폴링 방식 사용)
@@ -55,6 +67,7 @@
   - `temporary_profiles`: 임시 사용자 프로필 (30분 만료)
   - `groups`: 그룹 정보 (리더, 역할 카운트, 상태)
   - `group_members`: 그룹 멤버 정보 (세션 ID, 포지션, 리더 여부)
+  - `inquiries`: 1:1 문의 (이름, 이메일, 카테고리, 제목, 내용, 답변) 🆕
 - **스토리지 서비스**: Supabase PostgreSQL
 - **데이터 플로우**:
   1. 클라이언트 → API Route → Business Logic → Supabase

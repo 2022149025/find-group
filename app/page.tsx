@@ -203,9 +203,20 @@ export default function Home() {
     <main className="min-h-screen bg-gradient-to-br from-gray-100 to-gray-200 py-8 px-4">
       {/* 헤더 */}
       <div className="max-w-6xl mx-auto mb-8">
-        <h1 className="text-4xl font-bold text-center text-gray-800">
-          오버워치 5인큐 매칭
-        </h1>
+        <div className="flex items-center justify-between">
+          <h1 className="text-4xl font-bold text-gray-800">
+            오버워치 5인큐 매칭
+          </h1>
+          {step === 'landing' && (
+            <a
+              href="/inquiry"
+              className="px-4 py-2 bg-purple-600 text-white font-semibold rounded-lg hover:bg-purple-700 transition flex items-center gap-2"
+            >
+              <span>💬</span>
+              <span>1:1 문의</span>
+            </a>
+          )}
+        </div>
       </div>
 
       {/* 에러 메시지 */}
