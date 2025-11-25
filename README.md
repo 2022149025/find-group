@@ -56,9 +56,10 @@
   - Body: `{ inquiryId, adminReply }`
 
 ### 관리자 페이지 🔐
-- `/admin/inquiries` - 문의 관리 페이지 (PIN 인증 필요)
-  - 기본 PIN: `1234`
-  - 환경변수로 변경 가능: `NEXT_PUBLIC_ADMIN_PIN`
+- `/admin/inquiries` - 문의 관리 페이지 (비밀번호 인증 필요)
+  - 기본 비밀번호: `admin1234` (운영 환경에서 반드시 변경!)
+  - 환경변수로 설정: `NEXT_PUBLIC_ADMIN_PASSWORD`
+  - Vercel Dashboard → Settings → Environment Variables에서 설정
 
 ## 미구현 기능
 - WebSocket 실시간 알림 (현재는 5초 폴링 방식 사용)

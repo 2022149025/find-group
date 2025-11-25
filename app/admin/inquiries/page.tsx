@@ -12,13 +12,14 @@ const categoryLabels: Record<Category, string> = {
   other: '💬 기타 문의'
 };
 
-// 관리자 PIN 코드 (환경변수 또는 하드코딩)
-const ADMIN_PIN = process.env.NEXT_PUBLIC_ADMIN_PIN || '1234';
+// 관리자 비밀번호 (환경변수로 설정 필수)
+// Vercel Dashboard → Settings → Environment Variables에서 설정
+const ADMIN_PASSWORD = process.env.NEXT_PUBLIC_ADMIN_PASSWORD || 'admin1234';
 
 export default function AdminInquiriesPage() {
   // 인증 상태
   const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [pinInput, setPinInput] = useState('');
+  const [passwordInput, setPasswordInput] = useState('');
   const [authError, setAuthError] = useState('');
 
   const [inquiries, setInquiries] = useState<Inquiry[]>([]);
@@ -44,13 +45,13 @@ export default function AdminInquiriesPage() {
   const handleAuth = (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (pinInput === ADMIN_PIN) {
+    if (passwordInput === ADMIN_PASSWORD) {
       setIsAuthenticated(true);
       sessionStorage.setItem('admin_authenticated', 'true');
       setAuthError('');
     } else {
-      setAuthError('관리자 번호가 올바르지 않습니다.');
-      setPinInput('');
+      setAuthError('관리자 비밀번호가 올바르지 않습니다.');
+      setPasswordInput('');
     }
   };
 
@@ -58,7 +59,7 @@ export default function AdminInquiriesPage() {
   const handleLogout = () => {
     setIsAuthenticated(false);
     sessionStorage.removeItem('admin_authenticated');
-    setPinInput('');
+    setPasswordInput('');
   };
 
   // 문의 목록 조회
@@ -157,21 +158,21 @@ export default function AdminInquiriesPage() {
             <div className="text-center mb-8">
               <div className="text-6xl mb-4">🔒</div>
               <h1 className="text-3xl font-bold text-gray-800 mb-2">관리자 인증</h1>
-              <p className="text-gray-600">관리자 번호를 입력해주세요</p>
+              <p className="text-gray-600">관리자 비밀번호를 입력해주세요</p>
             </div>
 
             <form onSubmit={handleAuth}>
               <div className="mb-6">
                 <label className="block text-gray-700 font-semibold mb-2">
-                  관리자 번호
+                  관리자 비밀번호
                 </label>
                 <input
                   type="password"
-                  value={pinInput}
-                  onChange={(e) => setPinInput(e.target.value)}
-                  className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:border-blue-500 focus:outline-none text-center text-2xl tracking-widest"
-                  placeholder="••••"
-                  maxLength={4}
+                  value={passwordInput}
+                  onChange={(e) => setPasswordInput(e.target.value)}
+                  className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:border-blue-500 focus:outline-none"
+                  placeholder="비밀번호를 입력하세요"
+                  minLength={4}
                   autoFocus
                   required
                 />
@@ -201,7 +202,10 @@ export default function AdminInquiriesPage() {
 
             <div className="mt-6 p-4 bg-blue-50 rounded-lg">
               <p className="text-sm text-gray-600 text-center">
-                💡 기본 관리자 번호는 <code className="bg-gray-200 px-2 py-1 rounded">1234</code>입니다.
+                💡 비밀번호는 Vercel 환경변수 <code className="bg-gray-200 px-2 py-1 rounded text-xs">NEXT_PUBLIC_ADMIN_PASSWORD</code>로 설정하세요.
+              </p>
+              <p className="text-xs text-gray-500 text-center mt-2">
+                기본값: admin1234 (변경 권장)
               </p>
             </div>
           </div>
