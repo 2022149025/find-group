@@ -57,6 +57,21 @@ const nextConfig: NextConfig = {
           {
             key: 'Permissions-Policy',
             value: 'camera=(), microphone=(), geolocation=()'
+          },
+          {
+            key: 'Content-Security-Policy',
+            value: [
+              "default-src 'self'",
+              "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.tailwindcss.com https://cdn.jsdelivr.net",
+              "style-src 'self' 'unsafe-inline' https://cdn.tailwindcss.com https://cdn.jsdelivr.net",
+              "img-src 'self' data: https:",
+              "font-src 'self' data: https://cdn.jsdelivr.net",
+              "connect-src 'self'",
+              "frame-ancestors 'self'",
+              "base-uri 'self'",
+              "form-action 'self'",
+              "object-src 'none'"
+            ].join('; ')
           }
         ],
       },

@@ -10,6 +10,7 @@ import {
   validateAdminToken,
   extractTokenFromHeader
 } from '@/lib/security/adminAuth';
+import { validateCSRFHeaders, extractCSRFToken, validateCSRFToken } from '@/lib/security/csrf';
 import {
   createSuccessResponse,
   createValidationError,
@@ -33,7 +34,14 @@ export async function POST(request: NextRequest) {
   const endpoint = '/api/inquiry/reply';
   
   try {
-    // 🔒 관리자 토큰 검증 (필수)
+    // 1. CSRF 헤더 검증 (Origin/Referer)
+    const csrfCheck = validateCSRFHeaders(request);
+    if (!csrfCheck.valid) {
+      logApiError('POST', endpoint, { error: 'CSRF validation failed' });
+      return createAuthError('CSRF validation failed');
+    }
+    
+    // 2. 🔒 관리자 Bearer 토큰 검증 (필수)
     const authHeader = request.headers.get('authorization');
     const token = extractTokenFromHeader(authHeader);
     
@@ -48,7 +56,17 @@ export async function POST(request: NextRequest) {
       return createAuthError(tokenValidation.error || '인증에 실패했습니다.');
     }
     
-    // Rate Limiting
+    // 3. CSRF 토큰 검증 (선택적 - 추가 보안)
+    const csrfToken = extractCSRFToken(request);
+    if (csrfToken) {
+      const csrfValid = validateCSRFToken(token, csrfToken);
+      if (!csrfValid) {
+        logApiError('POST', endpoint, { error: 'Invalid CSRF token' });
+        return createAuthError('유효하지 않은 CSRF 토큰입니다.');
+      }
+    }
+    
+    // 4. Rate Limiting
     const ip = request.headers.get('x-forwarded-for') || 'unknown';
     const rateLimit = checkRateLimit(`inquiry-reply:${ip}`, 20, 60000); // 1분에 20개
     

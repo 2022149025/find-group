@@ -98,6 +98,10 @@
 - ✅ **API Routes만 사용** (모든 DB 작업은 `/api/*` 경로로)
 - ✅ **DEBUG API 프로덕션 비활성화** (`NODE_ENV === 'production'`)
 - ✅ **console.log 제거** (프로덕션 빌드 시 자동 제거)
+- ✅ **CSRF 방어**
+  - Origin/Referer 헤더 검증
+  - CSRF 토큰 시스템 (관리자 API)
+  - Double Submit Cookie 패턴
 - ✅ **보안 헤더 설정**
   - `X-Frame-Options: SAMEORIGIN`
   - `X-Content-Type-Options: nosniff`
@@ -105,8 +109,10 @@
   - `Strict-Transport-Security: max-age=63072000`
   - `Referrer-Policy: strict-origin-when-cross-origin`
   - `Permissions-Policy: camera=(), microphone=(), geolocation=()`
-- ✅ **관리자 API 토큰 인증** (Bearer Token)
+  - `Content-Security-Policy` (XSS, clickjacking 방어)
+- ✅ **관리자 API 토큰 인증** (Bearer Token + CSRF Token)
 - ✅ **Brute Force 방지** (로그인 Rate Limiting: 5회/분)
+- ✅ **WebAssembly 보안** (현재 미사용, CSP로 제한)
 
 ### 에러 핸들링
 - 프로덕션: 민감한 정보 숨김

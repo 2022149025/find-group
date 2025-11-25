@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { InquiryService } from '@/lib/services/inquiryService';
 import { validateAdminToken, extractTokenFromHeader } from '@/lib/security/adminAuth';
+import { validateCSRFHeaders } from '@/lib/security/csrf';
 import { logApiRequest, logApiError } from '@/lib/security/errorHandler';
 
 /**
@@ -11,7 +12,16 @@ export async function GET(request: NextRequest) {
   const endpoint = '/api/inquiry/admin';
   
   try {
-    // 1. 토큰 검증
+    // 1. CSRF 헤더 검증 (Origin/Referer)
+    const csrfCheck = validateCSRFHeaders(request);
+    if (!csrfCheck.valid) {
+      return NextResponse.json(
+        { success: false, error: 'CSRF validation failed' },
+        { status: 403 }
+      );
+    }
+    
+    // 2. Bearer 토큰 검증
     const authHeader = request.headers.get('authorization');
     const token = extractTokenFromHeader(authHeader);
     

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createAdminSession } from '@/lib/security/adminAuth';
 import { checkRateLimit } from '@/lib/security/validation';
+import { generateCSRFToken, validateCSRFHeaders } from '@/lib/security/csrf';
 import {
   safeJsonParse,
   createValidationError,
@@ -24,7 +25,16 @@ export async function POST(request: NextRequest) {
   const endpoint = '/api/auth/admin/login';
   
   try {
-    // Rate Limiting (더 엄격: 5회/분)
+    // 1. CSRF 헤더 검증 (Origin/Referer)
+    const csrfCheck = validateCSRFHeaders(request);
+    if (!csrfCheck.valid) {
+      return NextResponse.json(
+        { success: false, error: 'CSRF validation failed' },
+        { status: 403 }
+      );
+    }
+    
+    // 2. Rate Limiting (더 엄격: 5회/분)
     const ip = request.headers.get('x-forwarded-for') || 'unknown';
     const rateLimit = checkRateLimit(`admin-login:${ip}`, 5, 60000);
     
@@ -56,11 +66,15 @@ export async function POST(request: NextRequest) {
       return createAuthError(result.error);
     }
     
+    // CSRF 토큰 생성 (Bearer Token과 별도)
+    const csrfToken = generateCSRFToken(result.token || '');
+    
     return NextResponse.json(
       {
         success: true,
         data: {
           token: result.token,
+          csrfToken,  // CSRF 토큰 추가
           expiresIn: result.expiresIn,
           expiresAt: Date.now() + (result.expiresIn || 0)
         },
