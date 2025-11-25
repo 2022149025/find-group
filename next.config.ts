@@ -18,6 +18,17 @@ const nextConfig: NextConfig = {
     } : false,
   },
   
+  // Turbopack 설정 (Next.js 16+)
+  experimental: {
+    turbo: {
+      // 프로덕션 빌드 시 minify 강제
+      minify: true,
+    },
+  },
+  
+  // SWC 난독화 설정 (프로덕션)
+  swcMinify: true,  // SWC 기반 minification 활성화
+  
   // 환경변수
   env: {
     NEXT_PUBLIC_SUPABASE_URL: process.env.NEXT_PUBLIC_SUPABASE_URL,
