@@ -10,32 +10,22 @@ export class MatchingService {
   /**
    * UC-211: 자동 그룹 매칭 (그룹원으로 시작)
    */
-  async autoMatchGroup(sessionId: string, position: 'Tank' | 'Damage' | 'Support' | 'Flex'): Promise<{ groupId: string; joined: boolean; assignedPosition?: 'Tank' | 'Damage' | 'Support' }> {
+  async autoMatchGroup(sessionId: string, position: 'Tank' | 'Damage' | 'Support' | 'Flex'): Promise<{ groupId: string; joined: boolean; assignedPosition?: 'Tank' | 'Damage' | 'Support' | 'Flex' }> {
     // 대기 중인 그룹 조회
     const waitingGroups = await this.groupService.getWaitingGroups();
     
     console.log(`[MatchingService] 대기 중인 그룹 수: ${waitingGroups.length}`);
     console.log(`[MatchingService] 찾는 포지션: ${position}`);
 
-    // Flex 포지션: 모든 빈자리에 들어갈 수 있음
+    // Flex 포지션: Flex로 참가 (나중에 자동 배정)
     if (position === 'Flex') {
-      // 빈자리가 있는 첫 번째 그룹 찾기 (우선순위: Tank > Damage > Support)
+      // 5명 미만인 그룹 찾기
       for (const group of waitingGroups) {
-        let assignedPosition: 'Tank' | 'Damage' | 'Support' | null = null;
-        
-        if (group.tankCount < 1) {
-          assignedPosition = 'Tank';
-        } else if (group.damageCount < 2) {
-          assignedPosition = 'Damage';
-        } else if (group.supportCount < 2) {
-          assignedPosition = 'Support';
-        }
-        
-        if (assignedPosition) {
+        if (group.totalMembers < 5) {
           try {
-            console.log(`[MatchingService] Flex → ${assignedPosition} 배정, 그룹: ${group.id}`);
-            await this.groupService.joinGroup(group.id, sessionId, assignedPosition);
-            return { groupId: group.id, joined: true, assignedPosition };
+            console.log(`[MatchingService] Flex로 그룹 참가: ${group.id}`);
+            await this.groupService.joinGroupAsFlex(group.id, sessionId);
+            return { groupId: group.id, joined: true, assignedPosition: 'Flex' };
           } catch (error) {
             console.error(`[MatchingService] Flex 그룹 참가 실패:`, error);
             continue; // 다음 그룹 시도

@@ -75,19 +75,19 @@ export class GroupService {
   async createGroup(leaderSessionId: string, leaderPosition: 'Tank' | 'Damage' | 'Support' | 'Flex'): Promise<Group> {
     console.log('[GroupService] 그룹 생성 시작:', { leaderSessionId, leaderPosition });
     
-    // Flex는 Tank로 기본 배정 (그룹장이 선택)
-    const actualPosition: 'Tank' | 'Damage' | 'Support' = leaderPosition === 'Flex' ? 'Tank' : leaderPosition;
+    // Flex는 포지션 카운트를 증가시키지 않음 (나중에 자동 배정)
+    const isFlex = leaderPosition === 'Flex';
     
-    console.log('[GroupService] 실제 배정 포지션:', actualPosition);
+    console.log('[GroupService] Flex 여부:', isFlex);
     
     // 그룹 생성
     const { data: groupData, error: groupError } = await this.supabase
       .from('groups')
       .insert({
         leader_session_id: leaderSessionId,
-        tank_count: actualPosition === 'Tank' ? 1 : 0,
-        damage_count: actualPosition === 'Damage' ? 1 : 0,
-        support_count: actualPosition === 'Support' ? 1 : 0,
+        tank_count: !isFlex && leaderPosition === 'Tank' ? 1 : 0,
+        damage_count: !isFlex && leaderPosition === 'Damage' ? 1 : 0,
+        support_count: !isFlex && leaderPosition === 'Support' ? 1 : 0,
         total_members: 1,
         status: 'waiting'
       })
@@ -102,16 +102,16 @@ export class GroupService {
     console.log('[GroupService] 그룹 생성 성공:', {
       id: groupData.id,
       status: groupData.status,
-      position: actualPosition
+      position: leaderPosition
     });
 
-    // 그룹장을 멤버로 추가 (실제 배정된 포지션으로)
+    // 그룹장을 멤버로 추가 (Flex는 Flex로 저장)
     const { error: memberError } = await this.supabase
       .from('group_members')
       .insert({
         group_id: groupData.id,
         session_id: leaderSessionId,
-        position: actualPosition,
+        position: leaderPosition,
         is_leader: true
       });
 
@@ -164,6 +164,52 @@ export class GroupService {
     await this.updateGroupCounts(groupId, position, 'increment');
 
     // UC-301: 매칭 완료 감지
+    await this.checkMatchingComplete(groupId);
+
+    return this.mapMemberData(memberData);
+  }
+
+  /**
+   * Flex 포지션으로 그룹 참가
+   */
+  async joinGroupAsFlex(groupId: string, sessionId: string): Promise<GroupMember> {
+    // 현재 그룹 상태 조회
+    const { data: groupData, error: groupError } = await this.supabase
+      .from('groups')
+      .select('*')
+      .eq('id', groupId)
+      .single();
+
+    if (groupError || !groupData) {
+      throw new Error('Group not found');
+    }
+
+    // 5명 미만인지 확인
+    if (groupData.total_members >= 5) {
+      throw new Error('Group is full');
+    }
+
+    // 멤버 추가 (Flex로 저장)
+    const { data: memberData, error: memberError } = await this.supabase
+      .from('group_members')
+      .insert({
+        group_id: groupId,
+        session_id: sessionId,
+        position: 'Flex',
+        is_leader: false
+      })
+      .select()
+      .single();
+
+    if (memberError) throw new Error(`Failed to join group as Flex: ${memberError.message}`);
+
+    // 총 멤버 수만 증가 (포지션 카운트는 증가하지 않음)
+    await this.supabase
+      .from('groups')
+      .update({ total_members: groupData.total_members + 1 })
+      .eq('id', groupId);
+
+    // UC-301: 매칭 완료 감지 (5명이면 Flex 자동 배정)
     await this.checkMatchingComplete(groupId);
 
     return this.mapMemberData(memberData);
@@ -300,7 +346,7 @@ export class GroupService {
   }
 
   /**
-   * UC-301: 매칭 완료 감지 (1T-2D-2H)
+   * UC-301: 매칭 완료 감지 (1T-2D-2H) + Flex 자동 배정
    */
   private async checkMatchingComplete(groupId: string): Promise<void> {
     const { data: groupData } = await this.supabase
@@ -311,20 +357,100 @@ export class GroupService {
 
     if (!groupData) return;
 
-    const isComplete = 
-      groupData.tank_count === 1 &&
-      groupData.damage_count === 2 &&
-      groupData.support_count === 2 &&
-      groupData.total_members === 5;
+    // 5명이 모였는지 확인
+    if (groupData.total_members === 5 && groupData.status === 'waiting') {
+      console.log('[GroupService] 5명 달성, Flex 멤버 자동 배정 시작');
 
-    if (isComplete && groupData.status === 'waiting') {
-      await this.supabase
-        .from('groups')
-        .update({
-          status: 'matched',
-          matched_at: new Date().toISOString()
-        })
-        .eq('id', groupId);
+      // 현재 그룹의 모든 멤버 조회
+      const { data: members } = await this.supabase
+        .from('group_members')
+        .select('*')
+        .eq('group_id', groupId);
+
+      if (!members) return;
+
+      // Flex 멤버 찾기
+      const flexMembers = members.filter(m => m.position === 'Flex');
+      
+      if (flexMembers.length > 0) {
+        console.log('[GroupService] Flex 멤버 수:', flexMembers.length);
+
+        // 현재 필요한 포지션 계산 (1T-2D-2H 기준)
+        const neededPositions: ('Tank' | 'Damage' | 'Support')[] = [];
+        const tankNeeded = 1 - groupData.tank_count;
+        const damageNeeded = 2 - groupData.damage_count;
+        const supportNeeded = 2 - groupData.support_count;
+
+        for (let i = 0; i < tankNeeded; i++) neededPositions.push('Tank');
+        for (let i = 0; i < damageNeeded; i++) neededPositions.push('Damage');
+        for (let i = 0; i < supportNeeded; i++) neededPositions.push('Support');
+
+        console.log('[GroupService] 필요한 포지션:', neededPositions);
+
+        // Flex 멤버를 랜덤하게 배정
+        const shuffledFlex = [...flexMembers].sort(() => Math.random() - 0.5);
+        
+        for (let i = 0; i < shuffledFlex.length && i < neededPositions.length; i++) {
+          const member = shuffledFlex[i];
+          const assignedPosition = neededPositions[i];
+
+          console.log('[GroupService] Flex 멤버 배정:', {
+            sessionId: member.session_id,
+            from: 'Flex',
+            to: assignedPosition
+          });
+
+          // 멤버의 포지션 업데이트
+          await this.supabase
+            .from('group_members')
+            .update({ position: assignedPosition })
+            .eq('id', member.id);
+
+          // 그룹 카운트 업데이트
+          await this.updateGroupCounts(groupId, assignedPosition as 'Tank' | 'Damage' | 'Support', 'increment');
+        }
+
+        // 재조회하여 매칭 완료 확인
+        const { data: updatedGroup } = await this.supabase
+          .from('groups')
+          .select('*')
+          .eq('id', groupId)
+          .single();
+
+        if (!updatedGroup) return;
+
+        const isComplete = 
+          updatedGroup.tank_count === 1 &&
+          updatedGroup.damage_count === 2 &&
+          updatedGroup.support_count === 2;
+
+        if (isComplete) {
+          console.log('[GroupService] 매칭 완료!');
+          await this.supabase
+            .from('groups')
+            .update({
+              status: 'matched',
+              matched_at: new Date().toISOString()
+            })
+            .eq('id', groupId);
+        }
+      } else {
+        // Flex 멤버가 없으면 기존 로직
+        const isComplete = 
+          groupData.tank_count === 1 &&
+          groupData.damage_count === 2 &&
+          groupData.support_count === 2;
+
+        if (isComplete) {
+          await this.supabase
+            .from('groups')
+            .update({
+              status: 'matched',
+              matched_at: new Date().toISOString()
+            })
+            .eq('id', groupId);
+        }
+      }
     }
   }
 
