@@ -554,6 +554,14 @@ export class GroupService {
   }
 
   /**
+   * 강제로 매칭 완료 체크 (외부에서 호출 가능)
+   */
+  async forceCheckMatchingComplete(groupId: string): Promise<void> {
+    console.log('[forceCheckMatchingComplete] 강제 체크 시작:', groupId);
+    await this.checkMatchingComplete(groupId);
+  }
+
+  /**
    * 대기 중인 그룹 조회
    */
   async getWaitingGroups(): Promise<Group[]> {

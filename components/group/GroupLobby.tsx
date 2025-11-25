@@ -129,6 +129,44 @@ export default function GroupLobby({ groupId, sessionId, isLeader, onKickMember,
 
         setMembers(newMembers);
         
+        // 5명 체크 및 매칭 완료 트리거
+        const totalCount = newMembers.length;
+        const tankCount = newMembers.filter((m: GroupMember) => m.position === 'Tank').length;
+        const damageCount = newMembers.filter((m: GroupMember) => m.position === 'Damage').length;
+        const supportCount = newMembers.filter((m: GroupMember) => m.position === 'Support').length;
+        const flexCount = newMembers.filter((m: GroupMember) => m.position === 'Flex').length;
+
+        console.log('[GroupLobby] 현재 구성:', {
+          total: totalCount,
+          Tank: tankCount,
+          Damage: damageCount,
+          Support: supportCount,
+          Flex: flexCount,
+          status: newStatus
+        });
+
+        // 5명이 모였고 아직 매칭 완료가 아니면 서버에 체크 요청
+        if (totalCount === 5 && newStatus === 'waiting') {
+          console.log('[GroupLobby] ⚠️ 5명 달성했지만 status가 waiting! 서버에 매칭 완료 체크 요청');
+          
+          // 서버에 강제로 매칭 완료 체크 요청
+          fetch('/api/group/check-complete', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ groupId })
+          }).then(async (res) => {
+            const checkResult = await res.json();
+            console.log('[GroupLobby] 매칭 완료 체크 결과:', checkResult);
+            
+            // 즉시 다시 조회
+            if (checkResult.success && checkResult.data?.matched) {
+              setTimeout(() => fetchGroupData(), 500);
+            }
+          }).catch(err => {
+            console.error('[GroupLobby] 매칭 완료 체크 실패:', err);
+          });
+        }
+        
         // 상태 변경 감지 및 처리
         if (newStatus === 'matched' && status !== 'matched') {
           console.log('[GroupLobby] 🎉 매칭 완료 감지! 화면 전환 시작');
