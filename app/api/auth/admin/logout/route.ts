@@ -28,13 +28,18 @@ export async function POST(request: NextRequest) {
     // 토큰 무효화
     const revoked = revokeAdminToken(token);
     
-    return NextResponse.json(
+    const response = NextResponse.json(
       {
         success: true,
         message: revoked ? '로그아웃되었습니다.' : '이미 로그아웃된 세션입니다.'
       },
       { status: 200 }
     );
+    
+    // CSRF 토큰 쿠키 삭제
+    response.cookies.delete('csrf-token');
+    
+    return response;
     
   } catch (error: any) {
     logApiError('POST', endpoint, error);

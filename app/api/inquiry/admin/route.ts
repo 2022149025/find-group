@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { InquiryService } from '@/lib/services/inquiryService';
 import { validateAdminToken, extractTokenFromHeader } from '@/lib/security/adminAuth';
-import { validateCSRFHeaders } from '@/lib/security/csrf';
+import { validateCSRFHeaders, validateDoubleSubmitCookie } from '@/lib/security/csrf';
 import { logApiRequest, logApiError } from '@/lib/security/errorHandler';
 
 /**
@@ -37,6 +37,15 @@ export async function GET(request: NextRequest) {
       return NextResponse.json(
         { success: false, error: validation.error },
         { status: 401 }
+      );
+    }
+    
+    // 3. Double Submit Cookie CSRF 토큰 검증 (필수)
+    const doubleSubmitCheck = validateDoubleSubmitCookie(request, token);
+    if (!doubleSubmitCheck.valid) {
+      return NextResponse.json(
+        { success: false, error: doubleSubmitCheck.error },
+        { status: 403 }
       );
     }
     

@@ -182,18 +182,62 @@ export function validateCSRFHeaders(request: NextRequest): {
 }
 
 /**
- * Request에서 CSRF 토큰 추출
+ * Request에서 CSRF 토큰 추출 (Double Submit Cookie 패턴)
+ * 
+ * 클라이언트는 헤더로 토큰을 보내야 하고,
+ * 서버는 헤더 토큰과 쿠키 토큰을 비교합니다.
  */
-export function extractCSRFToken(request: NextRequest): string | null {
-  // 1. 헤더에서 추출 (권장)
+export function extractCSRFToken(request: NextRequest): {
+  headerToken: string | null;
+  cookieToken: string | null;
+} {
   const headerToken = request.headers.get('x-csrf-token');
-  if (headerToken) return headerToken;
+  const cookieToken = request.cookies.get('csrf-token')?.value || null;
   
-  // 2. 쿠키에서 추출 (대안)
-  const cookieToken = request.cookies.get('csrf-token')?.value;
-  if (cookieToken) return cookieToken;
+  return { headerToken, cookieToken };
+}
+
+/**
+ * Double Submit Cookie 패턴 검증
+ * 헤더 토큰과 쿠키 토큰이 일치해야 함
+ */
+export function validateDoubleSubmitCookie(
+  request: NextRequest,
+  identifier: string
+): {
+  valid: boolean;
+  error?: string;
+} {
+  const { headerToken, cookieToken } = extractCSRFToken(request);
   
-  return null;
+  // 1. 둘 다 존재하는지 확인
+  if (!headerToken || !cookieToken) {
+    return { 
+      valid: false, 
+      error: 'CSRF 토큰이 없습니다. (헤더와 쿠키 모두 필요)' 
+    };
+  }
+  
+  // 2. 헤더와 쿠키 토큰이 일치하는지 확인
+  if (headerToken !== cookieToken) {
+    console.warn('[CSRF] Token mismatch: header !== cookie');
+    return { 
+      valid: false, 
+      error: 'CSRF 토큰이 일치하지 않습니다.' 
+    };
+  }
+  
+  // 3. 서버 측 저장된 토큰과 비교
+  const isValid = validateCSRFToken(identifier, headerToken);
+  
+  if (!isValid) {
+    return { 
+      valid: false, 
+      error: 'CSRF 토큰이 유효하지 않습니다.' 
+    };
+  }
+  
+  return { valid: true };
 }
 
 /**

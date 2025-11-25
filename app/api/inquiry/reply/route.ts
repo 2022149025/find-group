@@ -10,7 +10,7 @@ import {
   validateAdminToken,
   extractTokenFromHeader
 } from '@/lib/security/adminAuth';
-import { validateCSRFHeaders, extractCSRFToken, validateCSRFToken } from '@/lib/security/csrf';
+import { validateCSRFHeaders, validateDoubleSubmitCookie } from '@/lib/security/csrf';
 import {
   createSuccessResponse,
   createValidationError,
@@ -56,14 +56,11 @@ export async function POST(request: NextRequest) {
       return createAuthError(tokenValidation.error || '인증에 실패했습니다.');
     }
     
-    // 3. CSRF 토큰 검증 (선택적 - 추가 보안)
-    const csrfToken = extractCSRFToken(request);
-    if (csrfToken) {
-      const csrfValid = validateCSRFToken(token, csrfToken);
-      if (!csrfValid) {
-        logApiError('POST', endpoint, { error: 'Invalid CSRF token' });
-        return createAuthError('유효하지 않은 CSRF 토큰입니다.');
-      }
+    // 3. Double Submit Cookie CSRF 토큰 검증 (필수)
+    const doubleSubmitCheck = validateDoubleSubmitCookie(request, token);
+    if (!doubleSubmitCheck.valid) {
+      logApiError('POST', endpoint, { error: doubleSubmitCheck.error });
+      return createAuthError(doubleSubmitCheck.error || 'CSRF 토큰 검증 실패');
     }
     
     // 4. Rate Limiting

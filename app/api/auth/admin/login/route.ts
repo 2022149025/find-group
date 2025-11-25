@@ -69,12 +69,13 @@ export async function POST(request: NextRequest) {
     // CSRF 토큰 생성 (Bearer Token과 별도)
     const csrfToken = generateCSRFToken(result.token || '');
     
-    return NextResponse.json(
+    // Double Submit Cookie 패턴: 쿠키와 헤더 모두에 토큰 전송
+    const response = NextResponse.json(
       {
         success: true,
         data: {
           token: result.token,
-          csrfToken,  // CSRF 토큰 추가
+          csrfToken,  // 클라이언트가 헤더로 보내야 함
           expiresIn: result.expiresIn,
           expiresAt: Date.now() + (result.expiresIn || 0)
         },
@@ -82,6 +83,17 @@ export async function POST(request: NextRequest) {
       },
       { status: 200 }
     );
+    
+    // CSRF 토큰을 SameSite=Strict 쿠키로 설정
+    response.cookies.set('csrf-token', csrfToken, {
+      httpOnly: true,      // JavaScript 접근 불가 (XSS 방어)
+      secure: process.env.NODE_ENV === 'production',  // HTTPS only (프로덕션)
+      sameSite: 'strict',  // CSRF 방어
+      path: '/',
+      maxAge: 3600         // 1시간
+    });
+    
+    return response;
     
   } catch (error: any) {
     logApiError('POST', endpoint, error);
