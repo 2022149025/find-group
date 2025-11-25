@@ -486,109 +486,6 @@ export class GroupService {
     return (data || []).map(this.mapGroupData);
   }
 
-  /**
-   * 그룹원 탈퇴 (자발적 탈퇴)
-   */
-  async removeMember(groupId: string, sessionId: string): Promise<void> {
-    // 멤버 정보 조회
-    const { data: memberData } = await this.supabase
-      .from('group_members')
-      .select('position, is_leader')
-      .eq('group_id', groupId)
-      .eq('session_id', sessionId)
-      .single();
-
-    if (!memberData) {
-      throw new Error('Member not found');
-    }
-
-    if (memberData.is_leader) {
-      throw new Error('Leader cannot leave. Use deleteGroup instead.');
-    }
-
-    // 멤버 삭제
-    const { error: deleteError } = await this.supabase
-      .from('group_members')
-      .delete()
-      .eq('group_id', groupId)
-      .eq('session_id', sessionId);
-
-    if (deleteError) throw new Error(`Failed to remove member: ${deleteError.message}`);
-
-    // 그룹 카운트 업데이트
-    await this.updateGroupCounts(groupId, memberData.position, 'decrement');
-  }
-
-  /**
-   * 그룹장 인계 (그룹장이 나가면 다음 멤버에게 인계)
-   */
-  async transferLeadership(groupId: string, currentLeaderSessionId: string): Promise<void> {
-    // 현재 그룹의 모든 멤버 조회 (그룹장 제외, 가입 순서대로)
-    const { data: members } = await this.supabase
-      .from('group_members')
-      .select('*')
-      .eq('group_id', groupId)
-      .eq('is_leader', false)
-      .order('joined_at', { ascending: true });
-
-    if (!members || members.length === 0) {
-      // 멤버가 없으면 그룹 삭제
-      await this.deleteGroup(groupId);
-      return;
-    }
-
-    // 가장 먼저 들어온 멤버를 새 그룹장으로 지정
-    const newLeader = members[0];
-
-    // 새 그룹장 업데이트
-    const { error: updateMemberError } = await this.supabase
-      .from('group_members')
-      .update({ is_leader: true })
-      .eq('id', newLeader.id);
-
-    if (updateMemberError) throw new Error(`Failed to update new leader: ${updateMemberError.message}`);
-
-    // 그룹의 leader_session_id 업데이트
-    const { error: updateGroupError } = await this.supabase
-      .from('groups')
-      .update({ leader_session_id: newLeader.session_id })
-      .eq('id', groupId);
-
-    if (updateGroupError) throw new Error(`Failed to update group leader: ${updateGroupError.message}`);
-
-    // 기존 그룹장 멤버 삭제
-    const { data: oldLeaderMember } = await this.supabase
-      .from('group_members')
-      .select('position')
-      .eq('group_id', groupId)
-      .eq('session_id', currentLeaderSessionId)
-      .single();
-
-    if (oldLeaderMember) {
-      await this.supabase
-        .from('group_members')
-        .delete()
-        .eq('group_id', groupId)
-        .eq('session_id', currentLeaderSessionId);
-
-      // 카운트 업데이트
-      await this.updateGroupCounts(groupId, oldLeaderMember.position, 'decrement');
-    }
-  }
-
-  /**
-   * 그룹 삭제 (멤버가 없을 때만 삭제)
-   */
-  async deleteGroup(groupId: string): Promise<void> {
-    // group_members는 ON DELETE CASCADE로 자동 삭제됨
-    const { error } = await this.supabase
-      .from('groups')
-      .delete()
-      .eq('id', groupId);
-
-    if (error) throw new Error(`Failed to delete group: ${error.message}`);
-  }
-
   private mapGroupData(data: any): Group {
     return {
       id: data.id,
@@ -601,6 +498,174 @@ export class GroupService {
       createdAt: data.created_at,
       matchedAt: data.matched_at
     };
+  }
+
+  /**
+   * 멤버 탈퇴 처리
+   */
+  async removeMember(groupId: string, sessionId: string): Promise<void> {
+    console.log('[GroupService] 멤버 탈퇴 시작:', { groupId, sessionId });
+
+    // 멤버 정보 조회
+    const { data: memberData, error: memberError } = await this.supabase
+      .from('group_members')
+      .select('position, is_leader')
+      .eq('group_id', groupId)
+      .eq('session_id', sessionId)
+      .single();
+
+    if (memberError || !memberData) {
+      console.error('[GroupService] 멤버를 찾을 수 없음:', memberError);
+      throw new Error('Member not found');
+    }
+
+    console.log('[GroupService] 탈퇴할 멤버:', memberData);
+
+    // 멤버 삭제
+    const { error: deleteError } = await this.supabase
+      .from('group_members')
+      .delete()
+      .eq('group_id', groupId)
+      .eq('session_id', sessionId);
+
+    if (deleteError) {
+      console.error('[GroupService] 멤버 삭제 실패:', deleteError);
+      throw new Error(`Failed to remove member: ${deleteError.message}`);
+    }
+
+    console.log('[GroupService] 멤버 삭제 완료');
+
+    // Flex가 아닌 경우에만 포지션 카운트 감소
+    if (memberData.position !== 'Flex') {
+      await this.updateGroupCounts(groupId, memberData.position as 'Tank' | 'Damage' | 'Support', 'decrement');
+    } else {
+      // Flex인 경우 총 멤버 수만 감소
+      const { data: groupData } = await this.supabase
+        .from('groups')
+        .select('total_members')
+        .eq('id', groupId)
+        .single();
+
+      if (groupData) {
+        await this.supabase
+          .from('groups')
+          .update({ total_members: groupData.total_members - 1 })
+          .eq('id', groupId);
+      }
+    }
+
+    console.log('[GroupService] 멤버 탈퇴 처리 완료');
+
+    // 남은 멤버 확인 후 그룹 삭제 여부 결정
+    await this.checkAndDeleteEmptyGroup(groupId);
+  }
+
+  /**
+   * 그룹장 권한 이양 (그룹장이 나가는 경우)
+   */
+  async transferLeadership(groupId: string, leaderSessionId: string): Promise<void> {
+    console.log('[GroupService] 그룹장 권한 이양 시작:', { groupId, leaderSessionId });
+
+    // 현재 그룹의 모든 멤버 조회
+    const { data: members, error: membersError } = await this.supabase
+      .from('group_members')
+      .select('*')
+      .eq('group_id', groupId);
+
+    if (membersError) {
+      console.error('[GroupService] 멤버 조회 실패:', membersError);
+      throw new Error(`Failed to get members: ${membersError.message}`);
+    }
+
+    console.log('[GroupService] 현재 멤버 수:', members?.length || 0);
+
+    // 그룹장만 있는 경우 그룹 삭제
+    if (!members || members.length <= 1) {
+      console.log('[GroupService] 그룹장만 있음, 그룹 삭제');
+      await this.deleteGroup(groupId);
+      return;
+    }
+
+    // 다른 멤버가 있는 경우 권한 이양
+    const newLeader = members.find(m => m.session_id !== leaderSessionId);
+
+    if (!newLeader) {
+      console.error('[GroupService] 새 그룹장을 찾을 수 없음');
+      throw new Error('No suitable member to transfer leadership');
+    }
+
+    console.log('[GroupService] 새 그룹장:', newLeader.session_id);
+
+    // 기존 그룹장 삭제
+    await this.removeMember(groupId, leaderSessionId);
+
+    // 새 그룹장 설정
+    await this.supabase
+      .from('group_members')
+      .update({ is_leader: true })
+      .eq('id', newLeader.id);
+
+    await this.supabase
+      .from('groups')
+      .update({ leader_session_id: newLeader.session_id })
+      .eq('id', groupId);
+
+    console.log('[GroupService] 그룹장 권한 이양 완료');
+  }
+
+  /**
+   * 빈 그룹 확인 및 삭제
+   */
+  private async checkAndDeleteEmptyGroup(groupId: string): Promise<void> {
+    console.log('[GroupService] 빈 그룹 확인:', groupId);
+
+    const { data: members, error: membersError } = await this.supabase
+      .from('group_members')
+      .select('id')
+      .eq('group_id', groupId);
+
+    if (membersError) {
+      console.error('[GroupService] 멤버 확인 실패:', membersError);
+      return;
+    }
+
+    console.log('[GroupService] 남은 멤버 수:', members?.length || 0);
+
+    // 멤버가 없으면 그룹 삭제
+    if (!members || members.length === 0) {
+      console.log('[GroupService] 멤버가 없음, 그룹 삭제');
+      await this.deleteGroup(groupId);
+    }
+  }
+
+  /**
+   * 그룹 삭제
+   */
+  private async deleteGroup(groupId: string): Promise<void> {
+    console.log('[GroupService] 그룹 삭제:', groupId);
+
+    // 먼저 모든 멤버 삭제 (FK 제약조건 대비)
+    const { error: membersDeleteError } = await this.supabase
+      .from('group_members')
+      .delete()
+      .eq('group_id', groupId);
+
+    if (membersDeleteError) {
+      console.error('[GroupService] 멤버 삭제 실패:', membersDeleteError);
+    }
+
+    // 그룹 삭제
+    const { error: groupDeleteError } = await this.supabase
+      .from('groups')
+      .delete()
+      .eq('id', groupId);
+
+    if (groupDeleteError) {
+      console.error('[GroupService] 그룹 삭제 실패:', groupDeleteError);
+      throw new Error(`Failed to delete group: ${groupDeleteError.message}`);
+    }
+
+    console.log('[GroupService] 그룹 삭제 완료');
   }
 
   private mapMemberData(data: any): GroupMember {
