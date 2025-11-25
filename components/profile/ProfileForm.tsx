@@ -219,27 +219,40 @@ export default function ProfileForm({ onSubmit, loading = false }: ProfileFormPr
         <label className="block text-sm font-medium text-gray-700 mb-2">
           현재 티어 (포지션별) <span className="text-red-500">*</span>
         </label>
-        {POSITIONS.map(position => (
-          <div key={position} className="mb-3">
-            <p className="text-sm text-gray-600 mb-1">{position}</p>
-            <select
-              value={formData.currentTier?.[position] || ''}
-              onChange={(e) => setFormData({
-                ...formData,
-                currentTier: {
-                  ...formData.currentTier,
-                  [position]: e.target.value
-                }
-              })}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            >
-              <option value="">선택하세요</option>
-              {TIERS.map(tier => (
-                <option key={tier} value={tier}>{tier}</option>
-              ))}
-            </select>
-          </div>
-        ))}
+        {POSITIONS.map(position => {
+          // Flex 포지션은 티어 선택 불필요 (Tank, Damage, Support 티어만 입력)
+          if (position === 'Flex') {
+            return (
+              <div key={position} className="mb-3">
+                <p className="text-sm text-gray-600 mb-1">
+                  {position} - Tank, Damage, Support 티어를 각각 입력하세요
+                </p>
+              </div>
+            );
+          }
+          
+          return (
+            <div key={position} className="mb-3">
+              <p className="text-sm text-gray-600 mb-1">{position}</p>
+              <select
+                value={formData.currentTier?.[position] || ''}
+                onChange={(e) => setFormData({
+                  ...formData,
+                  currentTier: {
+                    ...formData.currentTier,
+                    [position]: e.target.value
+                  }
+                })}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              >
+                <option value="">선택하세요</option>
+                {TIERS.map(tier => (
+                  <option key={tier} value={tier}>{tier}</option>
+                ))}
+              </select>
+            </div>
+          );
+        })}
         {errors.currentTier && <p className="mt-1 text-sm text-red-500">{errors.currentTier}</p>}
       </div>
 
