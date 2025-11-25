@@ -127,6 +127,61 @@ export class InquiryService {
   }
 
   /**
+   * 전체 문의 목록 조회 (관리자용)
+   */
+  async getAllInquiries(status?: 'pending' | 'answered' | null): Promise<Inquiry[]> {
+    console.log('[InquiryService] 전체 문의 조회:', { status });
+
+    let query = this.supabase
+      .from('inquiries')
+      .select('*')
+      .order('created_at', { ascending: false });
+
+    if (status) {
+      query = query.eq('status', status);
+    }
+
+    const { data, error } = await query;
+
+    if (error) {
+      console.error('[InquiryService] 전체 문의 조회 실패:', error);
+      throw new Error(`Failed to fetch all inquiries: ${error.message}`);
+    }
+
+    console.log('[InquiryService] 전체 문의 조회 성공:', data.length, '개');
+    return data.map(d => this.mapInquiryData(d));
+  }
+
+  /**
+   * 문의에 답변 작성
+   */
+  async replyToInquiry(inquiryId: string, adminReply: string): Promise<Inquiry> {
+    console.log('[InquiryService] 답변 작성:', { inquiryId });
+
+    const now = new Date().toISOString();
+
+    const { data, error } = await this.supabase
+      .from('inquiries')
+      .update({
+        admin_reply: adminReply,
+        status: 'answered',
+        replied_at: now,
+        updated_at: now
+      })
+      .eq('id', inquiryId)
+      .select()
+      .single();
+
+    if (error) {
+      console.error('[InquiryService] 답변 작성 실패:', error);
+      throw new Error(`Failed to reply to inquiry: ${error.message}`);
+    }
+
+    console.log('[InquiryService] 답변 작성 성공:', data.id);
+    return this.mapInquiryData(data);
+  }
+
+  /**
    * 데이터 매핑
    */
   private mapInquiryData(data: any): Inquiry {
