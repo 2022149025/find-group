@@ -33,6 +33,17 @@ export class InquiryService {
   }
 
   /**
+   * UUID 생성 (클라이언트 측)
+   */
+  private generateUUID(): string {
+    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+      const r = Math.random() * 16 | 0;
+      const v = c === 'x' ? r : (r & 0x3 | 0x8);
+      return v.toString(16);
+    });
+  }
+
+  /**
    * 문의 생성
    */
   async createInquiry(input: InquiryInput): Promise<Inquiry> {
@@ -43,15 +54,24 @@ export class InquiryService {
       title: input.title
     });
 
+    // UUID 명시적 생성
+    const id = this.generateUUID();
+    const now = new Date().toISOString();
+
+    console.log('[InquiryService] 생성된 UUID:', id);
+
     const { data, error } = await this.supabase
       .from('inquiries')
       .insert({
+        id: id,
         name: input.name,
         email: input.email,
         category: input.category,
         title: input.title,
         content: input.content,
-        status: 'pending'
+        status: 'pending',
+        created_at: now,
+        updated_at: now
       })
       .select()
       .single();
