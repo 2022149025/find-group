@@ -18,16 +18,8 @@ const nextConfig: NextConfig = {
     } : false,
   },
   
-  // Turbopack 설정 (Next.js 16+)
-  experimental: {
-    turbo: {
-      // 프로덕션 빌드 시 minify 강제
-      minify: true,
-    },
-  },
-  
-  // SWC 난독화 설정 (프로덕션)
-  swcMinify: true,  // SWC 기반 minification 활성화
+  // Next.js 16은 기본적으로 SWC minification 사용
+  // swcMinify는 Next.js 13+에서 기본값이 true이므로 명시 불필요
   
   // 환경변수
   env: {
