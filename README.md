@@ -96,12 +96,19 @@
 ### Next.js 16 보안
 - ✅ **Server Actions 비활성화** (`'use server'` 미사용)
 - ✅ **API Routes만 사용** (모든 DB 작업은 `/api/*` 경로로)
+- ✅ **API Middleware** (인증/권한 일관성 체크)
+  - 보호된 경로: Bearer Token + CSRF Token 필수
+  - 공개 경로: Origin/Referer 검증
+  - DEBUG API: 프로덕션 차단
 - ✅ **DEBUG API 프로덕션 비활성화** (`NODE_ENV === 'production'`)
-- ✅ **console.log 제거** (프로덕션 빌드 시 자동 제거)
+- ✅ **난독화 및 최적화**
+  - SWC minification (Next.js 16 기본 활성화)
+  - console.log 제거 (프로덕션)
+  - 코드 압축 및 난독화 (자동)
 - ✅ **CSRF 방어**
   - Origin/Referer 헤더 검증
-  - CSRF 토큰 시스템 (관리자 API)
   - Double Submit Cookie 패턴
+  - SameSite=Strict 쿠키
 - ✅ **보안 헤더 설정**
   - `X-Frame-Options: SAMEORIGIN`
   - `X-Content-Type-Options: nosniff`
